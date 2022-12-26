@@ -9,6 +9,8 @@ use rand::Rng;
 use crate::{visualizer::Visualizer, alpha_beta_algorithm::AlgorithmTraits};
 use crate::evaluator::Evaluator;
 
+const CALCULATION_HALF_DEPTH :i32= 4; 
+
 fn main() {
     // This structure is slow compared to using `Board` directly, so it is not recommended for engines.
     //let mut game = Game::new();
@@ -25,7 +27,7 @@ fn main() {
     let mut move_amount = 0;
     loop {
         let mut alg = AlphaBetaAlgorithm;
-        let ai_move = alg.get_best_move(board, 4).unwrap();
+        let ai_move = alg.get_best_move(board, CALCULATION_HALF_DEPTH).unwrap();
         board = board.make_move_new(ai_move);
         move_amount += 1;
         //game.make_move(ai_move);
