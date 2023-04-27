@@ -11,19 +11,47 @@ mod tests {
     use crate::alpha_beta_algorithm::{AlphaBetaAlgorithm, AlgorithmTraits};
 
     #[test]
-    fn it_works() {
-        //let mut board = Board::default();
-        //let mut board = Board::from_str("7K/5k2/8/8/8/8/8/r7 w - - 0 1").unwrap();
-        //let mut board = Board::from_str("7k/8/5K2/8/8/8/8/5R2 w - - 0 1").unwrap();
-        //let mut board = Board::from_str("8/6K1/8/4k3/8/8/8/r7 w - - 0 1").unwrap(); // shakkimatti 8:lla
-        //let mut board = Board::from_str("8/8/4k1K1/8/r7/8/8/8 b - - 7 4").unwrap(); //6:lla
-        //let mut board = Board::from_str("8/8/4k1K1/8/6r1/8/8/8 w - - 8 5").unwrap(); //5:lla
-        //let mut board = Board::from_str("8/8/8/5k1K/6r1/8/8/8 w - - 10 6").unwrap(); //4:lla
+    fn checkmate1() {
+        let board: Board = Board::from_str("7K/5k2/8/8/8/8/8/r7 w - - 0 1").unwrap(); // 1 llä
+        let required_moves = game_loop(board, 2);
 
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+        assert_eq!(required_moves, 2)
+
     }
 
+    #[test]
+    fn checkmate2() {
+        let board = Board::from_str("7k/8/5K2/8/8/8/8/5R2 w - - 0 1").unwrap(); //2:lla
+        let required_moves = game_loop(board, 4);
+
+        assert_eq!(required_moves, 3)
+
+    }
+
+    #[test]
+    fn checkmate4() {
+        let board = Board::from_str("8/8/8/5k1K/6r1/8/8/8 w - - 10 6").unwrap(); //4:lla
+        let required_moves = game_loop(board, 8);
+
+        assert_eq!(required_moves, 8)
+    }
+    
+    #[test]
+    fn checkmate5() {
+        let board: Board = Board::from_str("8/8/4k1K1/8/6r1/8/8/8 w - - 8 5").unwrap(); //5:lla
+        let required_moves = game_loop(board, 10);
+
+        assert_eq!(required_moves, 10)
+
+    }
+    #[test]
+    fn checkmate6() {
+        let board = Board::from_str("8/8/4k1K1/8/r7/8/8/8 b - - 7 4").unwrap(); //6:lla
+        let required_moves = game_loop(board, 12);
+
+        assert_eq!(required_moves, 12)
+
+    }
 
     #[test]
     fn checkmate8() {
@@ -31,14 +59,6 @@ mod tests {
         let required_moves = game_loop(board, 16);
 
         assert_eq!(required_moves, 16)
-
-    }
-    #[test]
-    fn checkmate4() {
-        let board = Board::from_str("8/8/8/5k1K/6r1/8/8/8 w - - 10 6").unwrap(); //4:lla
-        let required_moves = game_loop(board, 8);
-
-        assert_eq!(required_moves, 8)
 
     }
 
