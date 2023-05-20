@@ -4,7 +4,7 @@ impl Visualizer {
     pub fn visualize_board(board: Board) {
         let binding2 = board.to_string();
         let binding: Vec<&str> = binding2.split_whitespace().collect();
-        let board_rows = binding[0].split("/");
+        let board_rows = binding[0].split('/');
         let mut row_number = 8;
         for row in board_rows {
             let row_squares = row.chars();
@@ -13,7 +13,7 @@ impl Visualizer {
             for square in row_squares {
                 str_row += &Visualizer::get_piece_symbol(square);
             }
-            println!("{} {}", (row_number.to_string()), str_row);
+            println!("{} {}", (row_number), str_row);
             row_number -= 1
         }
 

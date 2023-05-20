@@ -37,7 +37,7 @@ impl Evaluator {
         if is_white {
             return value;
         } else {
-            return value * -1;
+            return -value;
         }
     }
     #[inline]
@@ -50,8 +50,8 @@ impl Evaluator {
     }
     #[inline]
     fn get_board_value_bitboard(board: Board) -> i32 {
-        let bit_board_white = board.color_combined(Color::White).clone();
-        let bit_board_black = board.color_combined(Color::Black).clone();
+        let bit_board_white = *board.color_combined(Color::White);
+        let bit_board_black = *board.color_combined(Color::Black);
         //println!("bitboard {}", bit_board_white);
         let mut current_score = 0;
         for square in bit_board_white {

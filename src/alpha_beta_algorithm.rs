@@ -64,12 +64,11 @@ impl AlphaBetaAlgorithm {
         depth: i32,
     ) {
         let new_board = test_game.make_move_new(a_move);
-        let result: i32;
-        if new_board.side_to_move() == Color::White {
-            result = self.alpha_beta_max(new_board, -999999, 999999, depth);
+        let result: i32 = if new_board.side_to_move() == Color::White {
+            self.alpha_beta_max(new_board, -999999, 999999, depth)
         } else {
-            result = self.alpha_beta_min(new_board, -999999, 999999, depth);
-        }
+            self.alpha_beta_min(new_board, -999999, 999999, depth)
+        };
         best_moves.push((a_move, result));
     }
     fn alpha_beta_max(
@@ -140,8 +139,6 @@ impl AlphaBetaAlgorithm {
         let mut depthleft = depth_left_before;
         let mut beta = beta_before;
         if moves_iterable.len() == 0 {
-            depthleft = 0;
-
             //game ended
             if board.checkers() == &EMPTY {
                 return 0;
