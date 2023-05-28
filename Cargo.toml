@@ -9,6 +9,14 @@ edition = "2021"
 chess = "3.2.0"
 rand = "0.8"
 
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "my_benchmark"
+harness = false
+bench.path = "src/benches"
+
 [profile.release-lto]
 inherits = "release"
 opt-level = 3
