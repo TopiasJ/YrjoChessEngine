@@ -1,16 +1,14 @@
 mod alpha_beta_algorithm;
 mod evaluator;
-mod visualizer;
 mod tests;
+mod visualizer;
 
 use crate::evaluator::Evaluator;
 use crate::{alpha_beta_algorithm::AlgorithmTraits, visualizer::Visualizer};
 use alpha_beta_algorithm::AlphaBetaAlgorithm;
 use chess::{Board, BoardStatus, Color};
 
-
-
-const CALCULATION_HALF_DEPTH: i32 = 3;
+const CALCULATION_HALF_DEPTH: i32 = 5;
 
 fn main() {
     let mut board = Board::default();
@@ -30,7 +28,7 @@ fn main() {
         //game.make_move(ai_move);
 
         //let start2 = Instant::now();
-        let eva2 = Evaluator::evaluate2(board);
+        let eva2 = Evaluator::evaluate(board);
         println!("eva2 {}", eva2); //,  start2.elapsed());
 
         Visualizer::visualize_board(board);

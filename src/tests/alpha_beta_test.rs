@@ -4,7 +4,7 @@ mod tests {
 
     use chess::{Board, BoardStatus, Color};
 
-    use crate::alpha_beta_algorithm::{AlphaBetaAlgorithm, AlgorithmTraits};
+    use crate::alpha_beta_algorithm::{AlgorithmTraits, AlphaBetaAlgorithm};
 
     #[test]
     fn checkmate1() {
@@ -12,7 +12,6 @@ mod tests {
         let required_moves = game_loop(board, 2);
 
         assert_eq!(required_moves, 2)
-
     }
 
     #[test]
@@ -21,7 +20,6 @@ mod tests {
         let required_moves = game_loop(board, 4);
 
         assert_eq!(required_moves, 3)
-
     }
 
     #[test]
@@ -31,14 +29,13 @@ mod tests {
 
         assert_eq!(required_moves, 8)
     }
-    
+
     #[test]
     fn checkmate5() {
         let board: Board = Board::from_str("8/8/4k1K1/8/6r1/8/8/8 w - - 8 5").unwrap(); //5:lla
         let required_moves = game_loop(board, 10);
 
         assert_eq!(required_moves, 10)
-
     }
     #[test]
     fn checkmate6() {
@@ -46,7 +43,6 @@ mod tests {
         let required_moves = game_loop(board, 12);
 
         assert_eq!(required_moves, 12)
-
     }
 
     #[test]
@@ -55,10 +51,9 @@ mod tests {
         let required_moves = game_loop(board, 16);
 
         assert_eq!(required_moves, 16)
-
     }
 
-    fn game_loop(mut board:Board, calculation_half_depth:i32) -> i32 {
+    fn game_loop(mut board: Board, calculation_half_depth: i32) -> i32 {
         let mut move_amount = 0;
         let mut alg = AlphaBetaAlgorithm;
         loop {
@@ -66,22 +61,21 @@ mod tests {
             board = board.make_move_new(ai_move);
             move_amount += 1;
 
+            let game_result: BoardStatus = board.status();
 
-        let game_result: BoardStatus = board.status();
-
-        if game_result != BoardStatus::Ongoing {
-            println!("Game ended");
-            if game_result == BoardStatus::Checkmate {
-                let winner = match board.side_to_move() {
-                    Color::Black => "White",
-                    Color::White => "Black",
-                };
-                println!("Checkmate: {} wins", winner);
-            } else {
-                println!("Stalemate");
+            if game_result != BoardStatus::Ongoing {
+                println!("Game ended");
+                if game_result == BoardStatus::Checkmate {
+                    let winner = match board.side_to_move() {
+                        Color::Black => "White",
+                        Color::White => "Black",
+                    };
+                    println!("Checkmate: {} wins", winner);
+                } else {
+                    println!("Stalemate");
+                }
+                return move_amount;
             }
-            return move_amount
-        }
         }
     }
 }

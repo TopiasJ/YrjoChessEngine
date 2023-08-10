@@ -20,37 +20,27 @@ impl Visualizer {
         println!("  a b c d e f g h");
     }
     fn get_piece_symbol(code: char) -> String {
-        if code == 'p' {
-            return "\u{265F} ".to_string();
-        } else if code == 'r' {
-            return "\u{265C} ".to_string();
-        } else if code == 'n' {
-            return "\u{265E} ".to_string();
-        } else if code == 'b' {
-            return "\u{265D} ".to_string();
-        } else if code == 'k' {
-            return "\u{265A} ".to_string();
-        } else if code == 'q' {
-            return "\u{265B} ".to_string();
-        } else if code == 'P' {
-            return "\u{2659} ".to_string();
-        } else if code == 'R' {
-            return "\u{2656} ".to_string();
-        } else if code == 'N' {
-            return "\u{2658} ".to_string();
-        } else if code == 'B' {
-            return "\u{2657} ".to_string();
-        } else if code == 'K' {
-            return "\u{2654} ".to_string();
-        } else if code == 'Q' {
-            return "\u{2655} ".to_string();
-        } else {
-            // it is a number instead
-            let mut empty_spaces = String::new();
-            for _ in 0..(code.to_string().parse::<i32>().unwrap()) {
-                empty_spaces += "  ";
+        match code {
+            'p' => "\u{265F} ".to_string(),
+            'r' => "\u{265C} ".to_string(),
+            'n' => "\u{265E} ".to_string(),
+            'b' => "\u{265D} ".to_string(),
+            'k' => "\u{265A} ".to_string(),
+            'q' => "\u{265B} ".to_string(),
+            'P' => "\u{2659} ".to_string(),
+            'R' => "\u{2656} ".to_string(),
+            'N' => "\u{2658} ".to_string(),
+            'B' => "\u{2657} ".to_string(),
+            'K' => "\u{2654} ".to_string(),
+            'Q' => "\u{2655} ".to_string(),
+            _ => {
+                // it is a number instead
+                let mut empty_spaces = String::new();
+                for _ in 0..(code.to_string().parse::<i32>().unwrap()) {
+                    empty_spaces += "  ";
+                }
+                empty_spaces
             }
-            return empty_spaces;
         }
     }
 }

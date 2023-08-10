@@ -18,8 +18,7 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
         }
         best_moves.sort_by_key(|k| k.1);
 
-        let selected_index =
-            get_random_from_multiple_best_moves(&best_moves, board.side_to_move())?;
+        let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move())?;
         let selected_move = match board.side_to_move() {
             Color::White => best_moves[best_moves.len() - 1 - selected_index],
             Color::Black => best_moves[selected_index],
@@ -28,17 +27,11 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
             Color::White => "White".to_string(),
             Color::Black => "Black".to_string(),
         };
-        println!(
-            "value for selected move for {0}: {1}",
-            color, selected_move.1
-        );
-        return Some(selected_move.0);
+        println!("value for selected move for {0}: {1}", color, selected_move.1);
+        Some(selected_move.0)
     }
 }
-fn get_random_from_multiple_best_moves(
-    best_moves: &Vec<(ChessMove, i32)>,
-    color: Color,
-) -> Option<usize> {
+fn get_random_from_multiple_best_moves(best_moves: &Vec<(ChessMove, i32)>, color: Color) -> Option<usize> {
     let best_value = match color {
         Color::White => best_moves.last()?.1,
         Color::Black => best_moves.first()?.1,
@@ -51,33 +44,20 @@ fn get_random_from_multiple_best_moves(
     }
     let mut rng = rand::thread_rng();
     let selected_index: i32 = rng.gen_range(0..amount_of_equal_moves); // doest not include last
-    return Some(selected_index as usize);
+    Some(selected_index as usize)
 }
 
 impl AlphaBetaAlgorithm {
     #[inline]
-    fn calc_one_move(
-        &self,
-        best_moves: &mut Vec<(ChessMove, i32)>,
-        a_move: ChessMove,
-        test_game: Board,
-        depth: i32,
-    ) {
+    fn calc_one_move(&self, best_moves: &mut Vec<(ChessMove, i32)>, a_move: ChessMove, test_game: Board, depth: i32) {
         let new_board = test_game.make_move_new(a_move);
-        let result: i32 = if new_board.side_to_move() == Color::White {
-            self.alpha_beta_max(new_board, -999999, 999999, depth)
-        } else {
-            self.alpha_beta_min(new_board, -999999, 999999, depth)
+        let result: i32 = match new_board.side_to_move() {
+            Color::White => self.alpha_beta_max(new_board, -999999, 999999, depth),
+            Color::Black => self.alpha_beta_min(new_board, -999999, 999999, depth)
         };
         best_moves.push((a_move, result));
     }
-    fn alpha_beta_max(
-        &self,
-        board: Board,
-        alpha_before: i32,
-        beta: i32,
-        depth_left_before: i32,
-    ) -> i32 {
+    fn alpha_beta_max(&self, board: Board, alpha_before: i32, beta: i32, depth_left_before: i32) -> i32 {
         let mut moves_iterable = MoveGen::new_legal(&board); //get all legal moves
         let depthleft = depth_left_before;
         let mut alpha = alpha_before;
@@ -94,7 +74,7 @@ impl AlphaBetaAlgorithm {
         }
 
         if depthleft == 0 {
-            return Evaluator::evaluate2(board);
+            return Evaluator::evaluate(board);
         }
         let targets = board.color_combined(!board.side_to_move());
         moves_iterable.set_iterator_mask(*targets);
@@ -125,18 +105,12 @@ impl AlphaBetaAlgorithm {
             }
         }
 
-        return alpha;
+        alpha
     }
 
-    fn alpha_beta_min(
-        &self,
-        board: Board,
-        alpha: i32,
-        beta_before: i32,
-        depth_left_before: i32,
-    ) -> i32 {
+    fn alpha_beta_min(&self, board: Board, alpha: i32, beta_before: i32, depth_left_before: i32) -> i32 {
         let mut moves_iterable = MoveGen::new_legal(&board); //get all legal moves
-        let mut depthleft = depth_left_before;
+        let depthleft = depth_left_before;
         let mut beta = beta_before;
         if moves_iterable.len() == 0 {
             //game ended
@@ -151,7 +125,7 @@ impl AlphaBetaAlgorithm {
         }
 
         if depthleft == 0 {
-            return Evaluator::evaluate2(board);
+            return Evaluator::evaluate(board);
         }
         let targets = board.color_combined(!board.side_to_move());
         moves_iterable.set_iterator_mask(*targets);
@@ -179,6 +153,6 @@ impl AlphaBetaAlgorithm {
                 beta = score; // beta acts like min in MiniMax
             }
         }
-        return beta;
+        beta
     }
 }
