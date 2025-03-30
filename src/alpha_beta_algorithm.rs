@@ -42,8 +42,8 @@ fn get_random_from_multiple_best_moves(best_moves: &Vec<(ChessMove, i32)>, color
             amount_of_equal_moves += 1;
         }
     }
-    let mut rng = rand::thread_rng();
-    let selected_index: i32 = rng.gen_range(0..amount_of_equal_moves); // doest not include last
+    let mut rng = rand::rng();
+    let selected_index: i32 = rng.random_range(0..amount_of_equal_moves); // doest not include last
     Some(selected_index as usize)
 }
 
@@ -53,7 +53,7 @@ impl AlphaBetaAlgorithm {
         let new_board = test_game.make_move_new(a_move);
         let result: i32 = match new_board.side_to_move() {
             Color::White => self.alpha_beta_max(new_board, -999999, 999999, depth),
-            Color::Black => self.alpha_beta_min(new_board, -999999, 999999, depth)
+            Color::Black => self.alpha_beta_min(new_board, -999999, 999999, depth),
         };
         best_moves.push((a_move, result));
     }
