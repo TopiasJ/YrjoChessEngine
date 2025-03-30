@@ -11,6 +11,8 @@ cargo clippy --fix
 
 cargo fmt
 
+cargo upgrade
+
 cargo build
 
 cargo build --profile release-lto
