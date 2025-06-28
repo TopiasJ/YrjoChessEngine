@@ -11,11 +11,14 @@ pub struct AlphaBetaAlgorithm;
 impl AlgorithmTraits for AlphaBetaAlgorithm {
     fn get_best_move(&mut self, board: Board, depth: i32) -> Option<ChessMove> {
         let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
-        let mut moves_iterable = MoveGen::new_legal(&board);
+        let moves: Vec<ChessMove> = MoveGen::new_legal(&board).collect();
 
-        for mov in &mut moves_iterable {
+        // Evaluate all moves
+        for mov in moves {
             self.calc_one_move(&mut best_moves, mov, board, depth);
         }
+        
+        // Sort moves by evaluation (best for current player first)
         best_moves.sort_by_key(|k| k.1);
 
         let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move())?;
@@ -23,6 +26,7 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
             Color::White => best_moves[best_moves.len() - 1 - selected_index],
             Color::Black => best_moves[selected_index],
         };
+        
         let color: String = match board.side_to_move() {
             Color::White => "White".to_string(),
             Color::Black => "Black".to_string(),
@@ -31,6 +35,7 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
         Some(selected_move.0)
     }
 }
+
 fn get_random_from_multiple_best_moves(best_moves: &Vec<(ChessMove, i32)>, color: Color) -> Option<usize> {
     let best_value = match color {
         Color::White => best_moves.last()?.1,
@@ -43,7 +48,7 @@ fn get_random_from_multiple_best_moves(best_moves: &Vec<(ChessMove, i32)>, color
         }
     }
     let mut rng = rand::rng();
-    let selected_index: i32 = rng.random_range(0..amount_of_equal_moves); // doest not include last
+    let selected_index: i32 = rng.random_range(0..amount_of_equal_moves);
     Some(selected_index as usize)
 }
 
@@ -57,51 +62,30 @@ impl AlphaBetaAlgorithm {
         };
         best_moves.push((a_move, result));
     }
+
     fn alpha_beta_max(&self, board: Board, alpha_before: i32, beta: i32, depth_left_before: i32) -> i32 {
-        let mut moves_iterable = MoveGen::new_legal(&board); //get all legal moves
-        let depthleft = depth_left_before;
-        let mut alpha = alpha_before;
-        if moves_iterable.len() == 0 {
-            //game ended
-            if board.checkers() == &EMPTY {
-                return 0;
-            } else {
-                return match board.side_to_move() {
-                    Color::White => -9999 - depth_left_before,
-                    Color::Black => 9999 + depth_left_before,
-                };
-            }
+        // Check for game end conditions
+        if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
+            return terminal_score;
         }
 
-        if depthleft == 0 {
+        // Leaf node evaluation
+        if depth_left_before == 0 {
             return Evaluator::evaluate(board);
         }
-        let targets = board.color_combined(!board.side_to_move());
-        moves_iterable.set_iterator_mask(*targets);
 
-        for mov in &mut moves_iterable {
+        let mut alpha = alpha_before;
+        let moves = self.get_ordered_moves(&board);
+
+        for mov in moves {
             let new_board = board.make_move_new(mov);
-            let score = self.alpha_beta_min(new_board, alpha, beta, depthleft - 1);
+            let score = self.alpha_beta_min(new_board, alpha, beta, depth_left_before - 1);
 
             if score >= beta {
-                return beta; //fail hard beta - cutoff
+                return beta; // Beta cutoff
             }
             if score > alpha {
-                alpha = score; // alpha acts like max in MiniMax
-            }
-        }
-
-        moves_iterable.set_iterator_mask(!EMPTY);
-
-        for mov in &mut moves_iterable {
-            let new_board = board.make_move_new(mov);
-            let score = self.alpha_beta_min(new_board, alpha, beta, depthleft - 1);
-
-            if score >= beta {
-                return beta; //fail hard beta - cutoff
-            }
-            if score > alpha {
-                alpha = score; // alpha acts like max in MiniMax
+                alpha = score;
             }
         }
 
@@ -109,50 +93,69 @@ impl AlphaBetaAlgorithm {
     }
 
     fn alpha_beta_min(&self, board: Board, alpha: i32, beta_before: i32, depth_left_before: i32) -> i32 {
-        let mut moves_iterable = MoveGen::new_legal(&board); //get all legal moves
-        let depthleft = depth_left_before;
-        let mut beta = beta_before;
-        if moves_iterable.len() == 0 {
-            //game ended
-            if board.checkers() == &EMPTY {
-                return 0;
-            } else {
-                return match board.side_to_move() {
-                    Color::White => -9999 - depth_left_before,
-                    Color::Black => 9999 + depth_left_before,
-                };
-            }
+        // Check for game end conditions
+        if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
+            return terminal_score;
         }
 
-        if depthleft == 0 {
+        // Leaf node evaluation
+        if depth_left_before == 0 {
             return Evaluator::evaluate(board);
         }
-        let targets = board.color_combined(!board.side_to_move());
-        moves_iterable.set_iterator_mask(*targets);
 
-        for mov in &mut moves_iterable {
+        let mut beta = beta_before;
+        let moves = self.get_ordered_moves(&board);
+
+        for mov in moves {
             let new_board = board.make_move_new(mov);
-            let score = self.alpha_beta_max(new_board, alpha, beta, depthleft - 1);
+            let score = self.alpha_beta_max(new_board, alpha, beta, depth_left_before - 1);
+            
             if score <= alpha {
-                return alpha; // fail hard alpha - cutoff
+                return alpha; // Alpha cutoff
             }
             if score < beta {
-                beta = score; // beta acts like min in MiniMax
+                beta = score;
             }
         }
 
-        moves_iterable.set_iterator_mask(!EMPTY);
-
-        for mov in &mut moves_iterable {
-            let new_board = board.make_move_new(mov);
-            let score = self.alpha_beta_max(new_board, alpha, beta, depthleft - 1);
-            if score <= alpha {
-                return alpha; // fail hard alpha - cutoff
-            }
-            if score < beta {
-                beta = score; // beta acts like min in MiniMax
-            }
-        }
         beta
+    }
+
+    /// Check if the position is terminal (game over) and return the appropriate score
+    fn check_terminal_position(&self, board: &Board, depth_left: i32) -> Option<i32> {
+        let moves_iterable = MoveGen::new_legal(board);
+        
+        if moves_iterable.len() == 0 {
+            // Game ended - check if it's checkmate or stalemate
+            if board.checkers() == &EMPTY {
+                return Some(0); // Stalemate
+            } else {
+                // Checkmate - the side to move is checkmated
+                return Some(match board.side_to_move() {
+                    Color::White => -9999 - depth_left,
+                    Color::Black => 9999 + depth_left,
+                });
+            }
+        }
+        
+        None // Game continues
+    }
+
+    /// Get moves in order of priority (captures first, then others)
+    fn get_ordered_moves(&self, board: &Board) -> Vec<ChessMove> {
+        let mut moves: Vec<ChessMove> = Vec::new();
+        
+        // First, collect capture moves
+        let mut capture_moves = MoveGen::new_legal(board);
+        let targets = board.color_combined(!board.side_to_move());
+        capture_moves.set_iterator_mask(*targets);
+        moves.extend(capture_moves);
+        
+        // Then, collect non-capture moves
+        let mut non_capture_moves = MoveGen::new_legal(board);
+        non_capture_moves.set_iterator_mask(!EMPTY);
+        moves.extend(non_capture_moves);
+        
+        moves
     }
 }

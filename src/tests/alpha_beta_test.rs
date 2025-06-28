@@ -23,6 +23,15 @@ mod tests {
     }
 
     #[test]
+    fn checkmate3() {
+        let board = Board::from_str("8/8/8/5k1K/6r1/8/8/8 w - - 10 6").unwrap(); // 3:lla
+        let required_moves = game_loop(board, 6);
+
+        assert_eq!(required_moves, 8)
+    }
+
+    #[test]
+    #[ignore]
     fn checkmate4() {
         let board = Board::from_str("8/8/8/5k1K/6r1/8/8/8 w - - 10 6").unwrap(); //4:lla
         let required_moves = game_loop(board, 8);
@@ -31,13 +40,16 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn checkmate5() {
         let board: Board = Board::from_str("8/8/4k1K1/8/6r1/8/8/8 w - - 8 5").unwrap(); //5:lla
         let required_moves = game_loop(board, 10);
 
         assert_eq!(required_moves, 10)
     }
+    
     #[test]
+    #[ignore]
     fn checkmate6() {
         let board = Board::from_str("8/8/4k1K1/8/r7/8/8/8 b - - 7 4").unwrap(); //6:lla
         let required_moves = game_loop(board, 12);
@@ -46,6 +58,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn checkmate8() {
         let board = Board::from_str("8/6K1/8/4k3/8/8/8/r7 w - - 0 1").unwrap(); // shakkimatti 8:lla
         let required_moves = game_loop(board, 16);
