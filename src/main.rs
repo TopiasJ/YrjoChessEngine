@@ -1,7 +1,9 @@
 mod alpha_beta_algorithm;
+mod chromosome;
 mod evaluator;
 mod tests;
 mod visualizer;
+mod tournament;
 
 use crate::evaluator::Evaluator;
 use crate::{alpha_beta_algorithm::AlgorithmTraits, visualizer::Visualizer};
