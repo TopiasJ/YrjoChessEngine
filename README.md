@@ -21,39 +21,46 @@ cargo build --profile release-lto
 
 ## 🖥️ Command-Line Usage
 
-You can now run the chess engine with various command-line options:
+The engine now supports two main modes via subcommands:
 
-- Run with default settings:
-  ```sh
-  cargo run
-  ```
+### Single Game Mode
+
+Run a single chess game between two AIs. Example (fast run):
+```sh
+cargo run -- single --depth 2 --max-moves 30
+```
 
 - Set calculation depth to 3:
   ```sh
-  cargo run -- --depth 3
+  cargo run -- single --depth 3
   ```
-
 - Start from a custom FEN position:
   ```sh
-  cargo run -- --fen "7k/8/5K2/8/8/8/8/5R2 w - - 0 1"
+  cargo run -- single --fen "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 4"
   ```
-
 - Limit the number of moves to 50:
   ```sh
-  cargo run -- --max-moves 50
+  cargo run -- single --max-moves 50
   ```
-
 - Hide board visualization and evaluation:
   ```sh
-  cargo run -- --show-board false --show-eval false
+  cargo run -- single --show-board false --show-eval false
   ```
-
 - Add a delay between moves (e.g., 500 ms):
   ```sh
-  cargo run -- --delay 500
+  cargo run -- single --delay 500
   ```
 
 You can combine these options as needed. For example:
 ```sh
-cargo run -- --depth 4 --fen "7k/8/5K2/8/8/8/8/5R2 w - - 0 1" --max-moves 60 --show-board true --show-eval true --delay 200
+cargo run -- single --depth 4 --fen "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 4" --max-moves 60 --show-board true --show-eval true --delay 200
 ```
+
+### Tournament Mode
+
+Run a tournament between chromosomes (for evolutionary algorithm experiments):
+```sh
+cargo run -- tournament --wanted-chromosome-count 4 --depth 2
+```
+- `--wanted-chromosome-count` sets the number of chromosomes (default: 10)
+- `--depth` sets the calculation depth (default: 5)

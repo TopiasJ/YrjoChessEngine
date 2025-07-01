@@ -8,7 +8,7 @@ const DEFAULT_ROOK_VALUE: i32 = 500;
 const DEFAULT_QUEEN_VALUE: i32 = 900;
 const DEFAULT_KING_VALUE: i32 = 10000;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Chromosome {
     pub pawn_value: i32,
     pub knight_value: i32,
