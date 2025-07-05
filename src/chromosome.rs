@@ -1,4 +1,4 @@
-use rand::{Rng, thread_rng};
+use rand::Rng;
 
 // Default piece values for chess evaluation
 const DEFAULT_PAWN_VALUE: i32 = 100;
@@ -19,6 +19,7 @@ pub struct Chromosome {
 }
 
 impl Chromosome {
+    #[allow(dead_code)]
     pub fn new_default() -> Self {
         Self {
             pawn_value: DEFAULT_PAWN_VALUE,
@@ -31,19 +32,19 @@ impl Chromosome {
     }
 
     pub fn new_random(variance: f32) -> Self {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
         Self {
             pawn_value: DEFAULT_PAWN_VALUE,
-            knight_value: rng.gen_range(
+            knight_value: rng.random_range(
                 (DEFAULT_KNIGHT_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_KNIGHT_VALUE as f32 * (1.0 + variance)) as i32
             ),
-            bishop_value: rng.gen_range(
+            bishop_value: rng.random_range(
                 (DEFAULT_BISHOP_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_BISHOP_VALUE as f32 * (1.0 + variance)) as i32
             ),
-            rook_value: rng.gen_range(
+            rook_value: rng.random_range(
                 (DEFAULT_ROOK_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_ROOK_VALUE as f32 * (1.0 + variance)) as i32
             ),
-            queen_value: rng.gen_range(
+            queen_value: rng.random_range(
                 (DEFAULT_QUEEN_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_QUEEN_VALUE as f32 * (1.0 + variance)) as i32
             ),
             king_value: DEFAULT_KING_VALUE
@@ -51,9 +52,10 @@ impl Chromosome {
     }
 
     // switch 2 piece values between chromosomes
+    #[allow(dead_code)]
     pub fn crossover(&mut self, other: &mut Self) {
-        let mut rng = thread_rng();
-        let what_to_cross = rng.gen_range(0..=4);
+        let mut rng = rand::rng();
+        let what_to_cross = rng.random_range(0..=4);
         match what_to_cross {
             1 => {
                 println!("doing crossover for knight. Original value gene1: {}, gene2: {}", self.knight_value, other.knight_value);
@@ -87,35 +89,36 @@ impl Chromosome {
         }
     }
 
+    #[allow(dead_code)]
     pub fn mutation(&mut self, mutation_chance: f32, variance: f32) {
-        let mut rng = thread_rng();
-        let rando = rng.gen_range(0.0..=100.0);
+        let mut rng = rand::rng();
+        let rando = rng.random_range(0.0..=100.0);
         let do_mutation = rando <= mutation_chance * 100.0;
 
         if do_mutation {
-            let what_to_mutate = rng.gen_range(1..=4);
+            let what_to_mutate = rng.random_range(1..=4);
             match what_to_mutate {
                 1 => {
                     let original_value = self.knight_value;
-                    self.knight_value = rng.gen_range(
+                    self.knight_value = rng.random_range(
                         original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32
                     );
                 }
                 2 => {
                     let original_value = self.bishop_value;
-                    self.bishop_value = rng.gen_range(
+                    self.bishop_value = rng.random_range(
                         original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32
                     );
                 }
                 3 => {
                     let original_value = self.rook_value;
-                    self.rook_value = rng.gen_range(
+                    self.rook_value = rng.random_range(
                         original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32
                     );
                 }
                 4 => {
                     let original_value = self.queen_value;
-                    self.queen_value = rng.gen_range(
+                    self.queen_value = rng.random_range(
                         original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32
                     );
                 }
@@ -126,33 +129,6 @@ impl Chromosome {
     }
 }
 
-pub trait ChromosomeRepository {
-    fn read_chromosomes(&self) -> Result<Vec<Chromosome>, String>;
-    fn write_chromosomes(&mut self, chromosomes: &[Chromosome]) -> Result<(), String>;
-}
-
-pub struct MemoryChromosomeRepository {
-    chromosomes: Vec<Chromosome>,
-}
-
-impl MemoryChromosomeRepository {
-    pub fn new() -> Self {
-        Self {
-            chromosomes: Vec::new(),
-        }
-    }
-}
-
-impl ChromosomeRepository for MemoryChromosomeRepository {
-    fn read_chromosomes(&self) -> Result<Vec<Chromosome>, String> {
-        Ok(self.chromosomes.clone())
-    }
-    
-    fn write_chromosomes(&mut self, chromosomes: &[Chromosome]) -> Result<(), String> {
-        self.chromosomes.extend(chromosomes.iter().cloned());
-        Ok(())
-    }
-}
 
 pub fn init_new_chromosomes(amount: i32, variance: f32) -> Vec<Chromosome> {
     let mut chromosomes = Vec::new();

@@ -1,6 +1,7 @@
 mod alpha_beta_algorithm;
 mod chromosome;
 mod evaluator;
+mod repository;
 mod tests;
 mod visualizer;
 mod tournament;
@@ -11,7 +12,7 @@ use alpha_beta_algorithm::AlphaBetaAlgorithm;
 use chess::{Board, BoardStatus, Color};
 use clap::{Parser, Subcommand};
 use std::str::FromStr;
-use crate::chromosome::MemoryChromosomeRepository;
+use crate::repository::MemoryChromosomeRepository;
 use crate::tournament::tournament;
 
 #[derive(Parser)]
