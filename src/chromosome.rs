@@ -1,4 +1,5 @@
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 
 // Default piece values for chess evaluation
 const DEFAULT_PAWN_VALUE: i32 = 100;
@@ -8,7 +9,7 @@ const DEFAULT_ROOK_VALUE: i32 = 500;
 const DEFAULT_QUEEN_VALUE: i32 = 900;
 const DEFAULT_KING_VALUE: i32 = 10000;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Chromosome {
     pub pawn_value: i32,
     pub knight_value: i32,
@@ -52,7 +53,6 @@ impl Chromosome {
     }
 
     // switch 2 piece values between chromosomes
-    #[allow(dead_code)]
     pub fn crossover(&mut self, other: &mut Self) {
         let mut rng = rand::rng();
         let what_to_cross = rng.random_range(0..=4);
@@ -81,7 +81,6 @@ impl Chromosome {
         }
     }
 
-    #[allow(dead_code)]
     pub fn mutation(&mut self, mutation_chance: f32, variance: f32) {
         let mut rng = rand::rng();
         let rando = rng.random_range(0.0..=100.0);

@@ -12,7 +12,7 @@ use alpha_beta_algorithm::AlphaBetaAlgorithm;
 use chess::{Board, BoardStatus, Color};
 use clap::{Parser, Subcommand};
 use std::str::FromStr;
-use crate::repository::MemoryChromosomeRepository;
+use crate::repository::{MemoryChromosomeRepository, FileChromosomeRepository};
 use crate::tournament::tournament;
 
 #[derive(Parser)]
@@ -67,6 +67,9 @@ pub struct TournamentArgs {
     /// Calculation depth (half-moves)
     #[arg(short = 'd', long, default_value = "5")]
     pub depth: i32,
+    /// File path for persistent chromosome storage (optional, uses memory if not provided)
+    #[arg(short = 'f', long)]
+    pub file_path: Option<String>,
 }
 
 fn run_single_game(args: &SingleArgs) {
@@ -152,8 +155,24 @@ fn main() {
     match &cli.command {
         Commands::Single(args) => run_single_game(args),
         Commands::Tournament(args) => {
-            let repo = MemoryChromosomeRepository::new();
-            tournament(args.wanted_chromosome_count, args.depth, &repo);
+            if let Some(file_path) = &args.file_path {
+                // Use file-based repository
+                match FileChromosomeRepository::new(file_path) {
+                    Ok(mut repo) => {
+                        println!("Using file repository: {}", file_path);
+                        tournament(args.wanted_chromosome_count, args.depth, &mut repo);
+                    }
+                    Err(e) => {
+                        eprintln!("Error creating file repository: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                // Use memory repository
+                println!("Using memory repository (chromosomes will not persist)");
+                let mut repo = MemoryChromosomeRepository::new();
+                tournament(args.wanted_chromosome_count, args.depth, &mut repo);
+            }
         }
     }
 }
