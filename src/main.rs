@@ -1,48 +1,75 @@
 mod alpha_beta_algorithm;
+mod chromosome;
 mod evaluator;
+mod repository;
 mod tests;
 mod visualizer;
+mod tournament;
 
 use crate::evaluator::Evaluator;
 use crate::{alpha_beta_algorithm::AlgorithmTraits, visualizer::Visualizer};
 use alpha_beta_algorithm::AlphaBetaAlgorithm;
 use chess::{Board, BoardStatus, Color};
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use std::str::FromStr;
+use crate::repository::MemoryChromosomeRepository;
+use crate::tournament::tournament;
 
 #[derive(Parser)]
 #[command(name = "YrjoChessEngine")]
 #[command(about = "A Rust-based chess engine with Alpha-Beta algorithm")]
 #[command(version)]
-struct Args {
+pub struct Cli {
+    #[command(subcommand)]
+    pub command: Commands,
+}
+
+#[derive(Subcommand)]
+pub enum Commands {
+    /// Play a single game
+    Single(SingleArgs),
+    /// Run a tournament
+    Tournament(TournamentArgs),
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct SingleArgs {
     /// Calculation depth (half-moves). Higher values = stronger play but slower
     #[arg(short = 'd', long, default_value = "5")]
-    depth: i32,
+    pub depth: i32,
 
     /// Starting position in FEN notation. Default is standard chess position
     #[arg(short = 'f', long)]
-    fen: Option<String>,
+    pub fen: Option<String>,
 
     /// Maximum number of moves before forcing a draw
     #[arg(short = 'm', long, default_value = "200")]
-    max_moves: u32,
+    pub max_moves: u32,
 
     /// Show evaluation scores after each move
     #[arg(short = 'e', long, default_value = "true")]
-    show_eval: bool,
+    pub show_eval: bool,
 
     /// Show board visualization after each move
     #[arg(short = 'b', long, default_value = "true")]
-    show_board: bool,
+    pub show_board: bool,
 
     /// Delay between moves in milliseconds (for visualization)
     #[arg(short = 'l', long, default_value = "0")]
-    delay: u64,
+    pub delay: u64,
 }
 
-fn main() {
-    let args = Args::parse();
+#[derive(Parser, Debug, Clone)]
+pub struct TournamentArgs {
+    /// Number of chromosomes to use in the tournament
+    #[arg(short = 'n', long, default_value = "10")]
+    pub wanted_chromosome_count: i32,
+    /// Calculation depth (half-moves)
+    #[arg(short = 'd', long, default_value = "5")]
+    pub depth: i32,
+}
 
+fn run_single_game(args: &SingleArgs) {
     // Validate depth
     if args.depth < 1 || args.depth > 10 {
         eprintln!("Error: Depth must be between 1 and 10");
@@ -72,7 +99,6 @@ fn main() {
 
     let mut move_amount = 0;
     let mut alg = AlphaBetaAlgorithm;
-    
     loop {
         let ai_move = match alg.get_best_move(board, args.depth) {
             Some(mv) => mv,
@@ -81,32 +107,24 @@ fn main() {
                 break;
             }
         };
-        
         board = board.make_move_new(ai_move);
         move_amount += 1;
-
         if args.show_eval {
             let eval = Evaluator::evaluate(board);
             println!("Move {}: Evaluation = {}", move_amount, eval);
         }
-
         if args.show_board {
             Visualizer::visualize_board(board);
             println!();
         }
-
-        // Add delay if specified
         if args.delay > 0 {
             std::thread::sleep(std::time::Duration::from_millis(args.delay));
         }
-
         if move_amount >= args.max_moves {
             println!("Maximum moves reached ({}). Forcing draw.", args.max_moves);
             break;
         }
-
         let game_result: BoardStatus = board.status();
-
         if game_result != BoardStatus::Ongoing {
             println!("Game ended after {} moves", move_amount);
             match game_result {
@@ -125,6 +143,17 @@ fn main() {
                 }
             }
             break;
+        }
+    }
+}
+
+fn main() {
+    let cli = Cli::parse();
+    match &cli.command {
+        Commands::Single(args) => run_single_game(args),
+        Commands::Tournament(args) => {
+            let repo = MemoryChromosomeRepository::new();
+            tournament(args.wanted_chromosome_count, args.depth, &repo);
         }
     }
 }
