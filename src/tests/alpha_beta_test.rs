@@ -83,7 +83,7 @@ mod tests {
                         Color::Black => "White",
                         Color::White => "Black",
                     };
-                    println!("Checkmate: {} wins", winner);
+                    println!("Checkmate: {winner} wins");
                 } else {
                     println!("Stalemate");
                 }

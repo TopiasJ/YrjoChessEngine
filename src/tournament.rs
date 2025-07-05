@@ -7,7 +7,7 @@ use crate::repository::ChromosomeRepository;
 pub fn tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, depth: i32, old_chromosomes_repository: &REPO) {
     let old_boys = old_chromosomes_repository.read_chromosomes().unwrap(); // todo handle errors
     let old_chromosomes_count = old_boys.len() as i32;
-    println!("Amount of dudes before tournament: {}", old_chromosomes_count);
+    println!("Amount of dudes before tournament: {old_chromosomes_count}");
 
     let mut players = init_new_chromosomes(wanted_chromosome_count-old_chromosomes_count, 0.3);
     players.extend(old_boys);
@@ -36,37 +36,37 @@ fn play_best_of_3_match(players:(Chromosome,Chromosome), depth: i32) {
     let mut player2_wins = 0;
     
     for game in 1..=3 {
-        println!("Game {}", game);
+        println!("Game {game}");
         let result = play_chess_match(players.0.clone(), players.1.clone(), depth);
         
         match result {
             1 => {
                 player1_wins += 1;
-                println!("Player 1 wins game {}", game);
+                println!("Player 1 wins game {game}");
             }
             -1 => {
                 player2_wins += 1;
-                println!("Player 2 wins game {}", game);
+                println!("Player 2 wins game {game}");
             }
             0 => {
-                println!("Game {} is a draw", game);
+                println!("Game {game} is a draw");
             }
             _ => {}
         }
         
         // Early termination if someone already won the match
         if player1_wins == 2 {
-            println!("Player 1 wins the match 2-{}", player2_wins);
+            println!("Player 1 wins the match 2-{player2_wins}");
             break;
         }
         if player2_wins == 2 {
-            println!("Player 2 wins the match 2-{}", player1_wins);
+            println!("Player 2 wins the match 2-{player1_wins}");
             break;
         }
     }
     
     if player1_wins == player2_wins {
-        println!("Match tied {}-{}", player1_wins, player2_wins);
+        println!("Match tied {player1_wins}-{player2_wins}");
     }
 }
 

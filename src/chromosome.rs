@@ -59,30 +59,22 @@ impl Chromosome {
         match what_to_cross {
             1 => {
                 println!("doing crossover for knight. Original value gene1: {}, gene2: {}", self.knight_value, other.knight_value);
-                let temp = self.knight_value;
-                self.knight_value = other.knight_value;
-                other.knight_value = temp;
+                std::mem::swap(&mut self.knight_value, &mut other.knight_value);
                 println!("New value gene1: {}, gene2: {}", self.knight_value, other.knight_value);
             }
             2 => {
                 println!("doing crossover for bishop. Original value gene1: {}, gene2: {}", self.bishop_value, other.bishop_value);
-                let temp = self.bishop_value;
-                self.bishop_value = other.bishop_value;
-                other.bishop_value = temp;
+                std::mem::swap(&mut self.bishop_value, &mut other.bishop_value);
                 println!("New value gene1: {}, gene2: {}", self.bishop_value, other.bishop_value);
             }
             3 => {
                 println!("doing crossover for rook. Original value gene1: {}, gene2: {}", self.rook_value, other.rook_value);
-                let temp = self.rook_value;
-                self.rook_value = other.rook_value;
-                other.rook_value = temp;
+                std::mem::swap(&mut self.rook_value, &mut other.rook_value);
                 println!("New value gene1: {}, gene2: {}", self.rook_value, other.rook_value);
             }
             4 => {
                 println!("doing crossover for queen. Original value gene1: {}, gene2: {}", self.queen_value, other.queen_value);
-                let temp = self.queen_value;
-                self.queen_value = other.queen_value;
-                other.queen_value = temp;
+                std::mem::swap(&mut self.queen_value, &mut other.queen_value);
                 println!("New value gene1: {}, gene2: {}", self.queen_value, other.queen_value);
             }
             _ => {}

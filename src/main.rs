@@ -92,7 +92,7 @@ fn run_single_game(args: &SingleArgs) {
     println!("YrjoChessEngine v{}", env!("CARGO_PKG_VERSION"));
     println!("Starting with depth: {}", args.depth);
     if let Some(ref fen) = args.fen {
-        println!("Custom position: {}", fen);
+        println!("Custom position: {fen}");
     }
     println!("Max moves: {}", args.max_moves);
     println!("---");
@@ -111,7 +111,7 @@ fn run_single_game(args: &SingleArgs) {
         move_amount += 1;
         if args.show_eval {
             let eval = Evaluator::evaluate(board);
-            println!("Move {}: Evaluation = {}", move_amount, eval);
+            println!("Move {move_amount}: Evaluation = {eval}");
         }
         if args.show_board {
             Visualizer::visualize_board(board);
@@ -126,14 +126,14 @@ fn run_single_game(args: &SingleArgs) {
         }
         let game_result: BoardStatus = board.status();
         if game_result != BoardStatus::Ongoing {
-            println!("Game ended after {} moves", move_amount);
+            println!("Game ended after {move_amount} moves");
             match game_result {
                 BoardStatus::Checkmate => {
                     let winner = match board.side_to_move() {
                         Color::Black => "White",
                         Color::White => "Black",
                     };
-                    println!("Checkmate: {} wins!", winner);
+                    println!("Checkmate: {winner} wins!");
                 }
                 BoardStatus::Stalemate => {
                     println!("Stalemate - Draw");
