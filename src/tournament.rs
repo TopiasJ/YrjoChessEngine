@@ -1,8 +1,25 @@
 use chess::{Board, BoardStatus};
 use rand::Rng;
+use std::thread;
 use crate::alpha_beta_algorithm::{AlphaBetaAlgorithm, AlgorithmTraits};
 use crate::chromosome::{init_new_chromosomes, Chromosome};
 use crate::repository::ChromosomeRepository;
+
+#[derive(Debug, Clone)]
+struct MatchTask {
+    player1: Chromosome,
+    player2: Chromosome,
+    depth: i32,
+    match_id: usize,
+}
+
+#[derive(Debug, Clone)]
+struct MatchResult {
+    winner: Chromosome,
+    match_id: usize,
+    player1_wins: i32,
+    player2_wins: i32,
+}
 
 pub fn tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, depth: i32, tournament_count: u32, old_chromosomes_repository: &mut REPO) {
     if tournament_count == 0 {
@@ -46,12 +63,7 @@ fn run_single_tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i3
         println!("Players in this round: {}", current_round_players.len());
         
         let matches = randomize_opponents(current_round_players);
-        let mut winners = Vec::new();
-        
-        for a_match in matches {
-            let winner = play_best_of_3_match(a_match, depth);
-            winners.push(winner);
-        }
+        let winners = run_matches_parallel(matches, depth);
         
         // If we have winners, do crossover and mutation
         if winners.len() > 1 && round_number < 2 {
@@ -280,5 +292,122 @@ fn do_crossover_and_mutation(winner_genes: Vec<Chromosome>, wanted_genes_count: 
     println!("Generated {} new chromosomes from {} winners", new_generation.len(), winner_genes.len());
     
     new_generation
+}
+
+fn run_match_task(task: MatchTask) -> MatchResult {
+    println!("Running match {} (parallel)", task.match_id);
+    
+    let mut player1_wins = 0;
+    let mut player2_wins = 0;
+    
+    for game in 1..=3 {
+        let result = play_chess_match(task.player1.clone(), task.player2.clone(), task.depth);
+        
+        match result {
+            1 => {
+                player1_wins += 1;
+                println!("Match {}: Player 1 wins game {}", task.match_id, game);
+            }
+            -1 => {
+                player2_wins += 1;
+                println!("Match {}: Player 2 wins game {}", task.match_id, game);
+            }
+            0 => {
+                println!("Match {}: Game {} is a draw", task.match_id, game);
+            }
+            _ => {}
+        }
+        
+        // Early termination if someone already won the match
+        if player1_wins == 2 {
+            println!("Match {}: Player 1 wins the match 2-{}", task.match_id, player2_wins);
+            return MatchResult {
+                winner: task.player1,
+                match_id: task.match_id,
+                player1_wins,
+                player2_wins,
+            };
+        }
+        if player2_wins == 2 {
+            println!("Match {}: Player 2 wins the match 2-{}", task.match_id, player1_wins);
+            return MatchResult {
+                winner: task.player2,
+                match_id: task.match_id,
+                player1_wins,
+                player2_wins,
+            };
+        }
+    }
+    
+    // Handle tie case
+    let winner = if player1_wins == player2_wins {
+        println!("Match {}: Tied {}-{}", task.match_id, player1_wins, player2_wins);
+        let mut rng = rand::rng();
+        if rng.random_range(0..2) == 0 {
+            println!("Match {}: Player 1 wins by tiebreaker", task.match_id);
+            task.player1
+        } else {
+            println!("Match {}: Player 2 wins by tiebreaker", task.match_id);
+            task.player2
+        }
+    } else if player1_wins > player2_wins {
+        task.player1
+    } else {
+        task.player2
+    };
+    
+    MatchResult {
+        winner,
+        match_id: task.match_id,
+        player1_wins,
+        player2_wins,
+    }
+}
+
+fn run_matches_parallel(matches: Vec<(Chromosome, Chromosome)>, depth: i32) -> Vec<Chromosome> {
+    let mut match_tasks = Vec::new();
+    
+    // Create match tasks
+    for (match_id, (player1, player2)) in matches.into_iter().enumerate() {
+        let task = MatchTask {
+            player1,
+            player2,
+            depth,
+            match_id,
+        };
+        match_tasks.push(task);
+    }
+    
+    println!("Starting {} matches in parallel...", match_tasks.len());
+    
+    // Spawn threads for each match
+    let mut handles = Vec::new();
+    for task in match_tasks {
+        let handle = thread::spawn(move || {
+            run_match_task(task)
+        });
+        handles.push(handle);
+    }
+    
+    // Wait for all threads to complete and collect results
+    let mut results = Vec::new();
+    for handle in handles {
+        match handle.join() {
+            Ok(result) => results.push(result),
+            Err(e) => {
+                eprintln!("Thread panicked: {:?}", e);
+                // Continue with other matches
+            }
+        }
+    }
+    
+    // Sort results by match_id to maintain order
+    results.sort_by_key(|r| r.match_id);
+    
+    // Extract winners
+    let winners: Vec<Chromosome> = results.into_iter().map(|r| r.winner).collect();
+    
+    println!("All matches completed. {} winners advance.", winners.len());
+    winners
 }
 
