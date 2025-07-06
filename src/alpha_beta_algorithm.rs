@@ -33,7 +33,7 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
             Color::White => "White".to_string(),
             Color::Black => "Black".to_string(),
         };
-        println!("value for selected move for {0}: {1}", color, selected_move.1);
+        println!("value for selected (normal), move for {0}: {1}", color, selected_move.1);
         Some(selected_move.0)
     }
 

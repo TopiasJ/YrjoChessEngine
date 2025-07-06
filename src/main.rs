@@ -70,6 +70,9 @@ pub struct TournamentArgs {
     /// File path for persistent chromosome storage (optional, uses memory if not provided)
     #[arg(short = 'f', long)]
     pub file_path: Option<String>,
+    /// Number of tournaments to run (0 or not specified = infinite)
+    #[arg(short = 't', long, default_value = "0")]
+    pub tournament_count: u32,
 }
 
 fn run_single_game(args: &SingleArgs) {
@@ -160,7 +163,7 @@ fn main() {
                 match FileChromosomeRepository::new(file_path) {
                     Ok(mut repo) => {
                         println!("Using file repository: {file_path}");
-                        tournament(args.wanted_chromosome_count, args.depth, &mut repo);
+                        tournament(args.wanted_chromosome_count, args.depth, args.tournament_count, &mut repo);
                     }
                     Err(e) => {
                         eprintln!("Error creating file repository: {e}");
@@ -171,7 +174,7 @@ fn main() {
                 // Use memory repository
                 println!("Using memory repository (chromosomes will not persist)");
                 let mut repo = MemoryChromosomeRepository::new();
-                tournament(args.wanted_chromosome_count, args.depth, &mut repo);
+                tournament(args.wanted_chromosome_count, args.depth, args.tournament_count, &mut repo);
             }
         }
     }

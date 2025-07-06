@@ -4,7 +4,26 @@ use crate::alpha_beta_algorithm::{AlphaBetaAlgorithm, AlgorithmTraits};
 use crate::chromosome::{init_new_chromosomes, Chromosome};
 use crate::repository::ChromosomeRepository;
 
-pub fn tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, depth: i32, old_chromosomes_repository: &mut REPO) {
+pub fn tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, depth: i32, tournament_count: u32, old_chromosomes_repository: &mut REPO) {
+    if tournament_count == 0 {
+        println!("Running infinite tournaments (press Ctrl+C to stop)...");
+        let mut current_tournament = 1;
+        loop {
+            println!("\n🏁 === STARTING TOURNAMENT #{current_tournament} ===");
+            run_single_tournament(wanted_chromosome_count, depth, old_chromosomes_repository);
+            current_tournament += 1;
+        }
+    } else {
+        println!("Running {tournament_count} tournaments...");
+        for i in 1..=tournament_count {
+            println!("\n🏁 === STARTING TOURNAMENT #{i}/{tournament_count} ===");
+            run_single_tournament(wanted_chromosome_count, depth, old_chromosomes_repository);
+        }
+        println!("\n🏆 All {tournament_count} tournaments completed!");
+    }
+}
+
+fn run_single_tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, depth: i32, old_chromosomes_repository: &mut REPO) {
     let old_boys = old_chromosomes_repository.read_chromosomes().unwrap(); // todo handle errors
     let old_chromosomes_count = old_boys.len() as i32;
     println!("Amount of dudes before tournament: {old_chromosomes_count}");
