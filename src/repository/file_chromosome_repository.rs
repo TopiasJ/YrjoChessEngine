@@ -20,13 +20,21 @@ pub struct FileChromosomeRepository {
 
 impl FileChromosomeRepository {
     pub fn new<P: AsRef<Path>>(file_path: P) -> Result<Self, String> {
-        let path = file_path.as_ref().to_path_buf();
+        let original_path = file_path.as_ref().to_path_buf();
         
-        // Create parent directories if they don't exist
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create directory structure: {}", e))?;
-        }
+        // Create the chromosomes folder in the same directory as the original file
+        let chromosomes_dir = original_path.parent()
+            .unwrap_or(Path::new("."))
+            .join("chromosomes");
+        
+        // Create the chromosomes directory if it doesn't exist
+        fs::create_dir_all(&chromosomes_dir)
+            .map_err(|e| format!("Failed to create chromosomes directory: {}", e))?;
+        
+        // Place the file inside the chromosomes folder
+        let file_name = original_path.file_name()
+            .unwrap_or(std::ffi::OsStr::new("chromosomes.json"));
+        let path = chromosomes_dir.join(file_name);
         
         // Create empty file if it doesn't exist
         if !path.exists() {
