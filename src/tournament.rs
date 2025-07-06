@@ -17,7 +17,7 @@ pub fn tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, dept
     
     // Keep playing rounds until we have fewer than 2 players
     while current_round_players.len() >= 2 {
-        println!("\n=== ROUND {} ===", round_number);
+        println!("\n=== ROUND {round_number} ===");
         println!("Players in this round: {}", current_round_players.len());
         
         let matches = randomize_opponents(current_round_players);
@@ -49,11 +49,11 @@ pub fn tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, dept
     
     if let Some(champion) = current_round_players.first() {
         println!("\n🏆 TOURNAMENT CHAMPION 🏆");
-        println!("Champion: {:?}", champion);
+        println!("Champion: {champion:?}");
         
         // Save all evolved chromosomes to repository
         if let Err(e) = old_chromosomes_repository.write_chromosomes(&current_round_players) {
-            eprintln!("Failed to save tournament results: {}", e);
+            eprintln!("Failed to save tournament results: {e}");
         } else {
             println!("Tournament results saved to repository!");
         }
@@ -183,24 +183,22 @@ fn do_crossover_and_mutation(winner_genes: Vec<Chromosome>, wanted_genes_count: 
     for gene in winner_genes.iter().cloned() {
         if previous.is_none() {
             previous = Some(gene);
-        } else {
-            if let Some(mut prev_gene) = previous.take() {
-                let mut current_gene = gene;
-                
-                // Do crossover between the two genes
-                prev_gene.crossover(&mut current_gene);
-                
-                // Apply mutation to both
-                prev_gene.mutation(0.1, 0.2); // 10% chance, 20% variance
-                current_gene.mutation(0.1, 0.2);
-                
-                // Save both genes
-                new_generation.push(prev_gene);
-                new_generation.push(current_gene);
-                current_gene_count += 2;
-                
-                previous = None;
-            }
+        } else if let Some(mut prev_gene) = previous.take() {
+            let mut current_gene = gene;
+            
+            // Do crossover between the two genes
+            prev_gene.crossover(&mut current_gene);
+            
+            // Apply mutation to both
+            prev_gene.mutation(0.1, 0.2); // 10% chance, 20% variance
+            current_gene.mutation(0.1, 0.2);
+            
+            // Save both genes
+            new_generation.push(prev_gene);
+            new_generation.push(current_gene);
+            current_gene_count += 2;
+            
+            previous = None;
         }
     }
     

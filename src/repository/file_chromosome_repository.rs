@@ -29,7 +29,7 @@ impl FileChromosomeRepository {
         
         // Create the chromosomes directory if it doesn't exist
         fs::create_dir_all(&chromosomes_dir)
-            .map_err(|e| format!("Failed to create chromosomes directory: {}", e))?;
+            .map_err(|e| format!("Failed to create chromosomes directory: {e}"))?;
         
         // Place the file inside the chromosomes folder
         let file_name = original_path.file_name()
@@ -49,14 +49,14 @@ impl FileChromosomeRepository {
     
     fn read_chromosomes_from_file(file_path: &Path) -> Result<Vec<Chromosome>, String> {
         let content = fs::read_to_string(file_path)
-            .map_err(|e| format!("Failed to read file: {}", e))?;
+            .map_err(|e| format!("Failed to read file: {e}"))?;
         
         if content.trim().is_empty() {
             return Ok(Vec::new());
         }
         
         serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse JSON: {}", e))
+            .map_err(|e| format!("Failed to parse JSON: {e}"))
     }
     
     fn write_chromosomes_to_file(file_path: &Path, chromosomes: &[Chromosome]) -> Result<(), String> {
@@ -66,21 +66,21 @@ impl FileChromosomeRepository {
         // Write to temporary file
         {
             let json = serde_json::to_string_pretty(chromosomes)
-                .map_err(|e| format!("Failed to serialize chromosomes: {}", e))?;
+                .map_err(|e| format!("Failed to serialize chromosomes: {e}"))?;
             
             let mut temp_file = fs::File::create(&temp_path)
-                .map_err(|e| format!("Failed to create temporary file: {}", e))?;
+                .map_err(|e| format!("Failed to create temporary file: {e}"))?;
             
             temp_file.write_all(json.as_bytes())
-                .map_err(|e| format!("Failed to write to temporary file: {}", e))?;
+                .map_err(|e| format!("Failed to write to temporary file: {e}"))?;
             
             temp_file.sync_all()
-                .map_err(|e| format!("Failed to sync temporary file: {}", e))?;
+                .map_err(|e| format!("Failed to sync temporary file: {e}"))?;
         }
         
         // Atomically replace the original file
         fs::rename(&temp_path, file_path)
-            .map_err(|e| format!("Failed to replace file: {}", e))?;
+            .map_err(|e| format!("Failed to replace file: {e}"))?;
         
         Ok(())
     }

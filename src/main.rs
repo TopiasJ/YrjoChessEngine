@@ -159,11 +159,11 @@ fn main() {
                 // Use file-based repository
                 match FileChromosomeRepository::new(file_path) {
                     Ok(mut repo) => {
-                        println!("Using file repository: {}", file_path);
+                        println!("Using file repository: {file_path}");
                         tournament(args.wanted_chromosome_count, args.depth, &mut repo);
                     }
                     Err(e) => {
-                        eprintln!("Error creating file repository: {}", e);
+                        eprintln!("Error creating file repository: {e}");
                         std::process::exit(1);
                     }
                 }
