@@ -24,6 +24,12 @@ pub fn tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, dept
 }
 
 fn run_single_tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, depth: i32, old_chromosomes_repository: &mut REPO) {
+    // Validate player count
+    if let Err(e) = old_chromosomes_repository.validate_player_count(wanted_chromosome_count) {
+        eprintln!("Error: {e}");
+        std::process::exit(1);
+    }
+    
     let old_boys = old_chromosomes_repository.read_chromosomes().unwrap(); // todo handle errors
     let old_chromosomes_count = old_boys.len() as i32;
     println!("Amount of dudes before tournament: {old_chromosomes_count}");
@@ -64,8 +70,8 @@ fn run_single_tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i3
         println!("\n🏆 TOURNAMENT CHAMPION 🏆");
         println!("Champion: {champion:?}");
         
-        // Save all evolved chromosomes to repository
-        if let Err(e) = old_chromosomes_repository.write_chromosomes(&current_round_players) {
+        // Save tournament winners to repository with metadata
+        if let Err(e) = old_chromosomes_repository.write_tournament_winners_with_count(&current_round_players, wanted_chromosome_count) {
             eprintln!("Failed to save tournament results: {e}");
         } else {
             println!("Tournament results saved to repository!");
@@ -275,3 +281,4 @@ fn do_crossover_and_mutation(winner_genes: Vec<Chromosome>, wanted_genes_count: 
     
     new_generation
 }
+

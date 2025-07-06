@@ -1,4 +1,4 @@
-use crate::chromosome::Chromosome;
+use crate::chromosome::{Chromosome, TournamentHistory};
 use crate::repository::ChromosomeRepository;
 use std::fs;
 use std::io::Write;
@@ -38,7 +38,7 @@ impl FileChromosomeRepository {
         
         // Create empty file if it doesn't exist
         if !path.exists() {
-            Self::write_chromosomes_to_file(&path, &[])?;
+            Self::write_tournament_history_to_file(&path, &TournamentHistory::new())?;
         }
         
         Ok(Self {
@@ -55,18 +55,42 @@ impl FileChromosomeRepository {
             return Ok(Vec::new());
         }
         
-        serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse JSON: {e}"))
+        let history: TournamentHistory = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse tournament history JSON: {e}"))?;
+        
+        Ok(history.get_latest_winners())
     }
     
+    fn read_tournament_history_from_file(file_path: &Path) -> Result<TournamentHistory, String> {
+        let content = fs::read_to_string(file_path)
+            .map_err(|e| format!("Failed to read file: {e}"))?;
+        
+        if content.trim().is_empty() {
+            return Ok(TournamentHistory::new());
+        }
+        
+        serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse tournament history JSON: {e}"))
+    }
+    
+    #[allow(dead_code)]
     fn write_chromosomes_to_file(file_path: &Path, chromosomes: &[Chromosome]) -> Result<(), String> {
+        // Legacy method - convert to tournament history format
+        let mut history = TournamentHistory::new();
+        if !chromosomes.is_empty() {
+            history.add_tournament(chromosomes.to_vec(), chromosomes.len() as i32);
+        }
+        Self::write_tournament_history_to_file(file_path, &history)
+    }
+    
+    fn write_tournament_history_to_file(file_path: &Path, history: &TournamentHistory) -> Result<(), String> {
         // Use atomic write operation: write to temporary file first, then rename
         let temp_path = file_path.with_extension("tmp");
         
         // Write to temporary file
         {
-            let json = serde_json::to_string_pretty(chromosomes)
-                .map_err(|e| format!("Failed to serialize chromosomes: {e}"))?;
+            let json = serde_json::to_string_pretty(history)
+                .map_err(|e| format!("Failed to serialize tournament history: {e}"))?;
             
             let mut temp_file = fs::File::create(&temp_path)
                 .map_err(|e| format!("Failed to create temporary file: {e}"))?;
@@ -100,13 +124,44 @@ impl ChromosomeRepository for FileChromosomeRepository {
         let _write_lock = self.file_lock.write()
             .map_err(|_| "Failed to acquire write lock for writing chromosomes")?;
         
-        // Read existing chromosomes first
-        let mut existing_chromosomes = Self::read_chromosomes_from_file(&self.file_path)?;
+        // Read existing history first
+        let mut history = Self::read_tournament_history_from_file(&self.file_path)?;
         
-        // Extend with new chromosomes
-        existing_chromosomes.extend(chromosomes.iter().cloned());
+        // Add new tournament with these chromosomes
+        if !chromosomes.is_empty() {
+            history.add_tournament(chromosomes.to_vec(), chromosomes.len() as i32);
+        }
         
-        // Write all chromosomes back
-        Self::write_chromosomes_to_file(&self.file_path, &existing_chromosomes)
+        // Write updated history back
+        Self::write_tournament_history_to_file(&self.file_path, &history)
+    }
+    
+    fn write_tournament_winners(&mut self, winners: &[Chromosome]) -> Result<(), String> {
+        self.write_tournament_winners_with_count(winners, winners.len() as i32)
+    }
+    
+    fn write_tournament_winners_with_count(&mut self, winners: &[Chromosome], player_count: i32) -> Result<(), String> {
+        // Use write lock - exclusive access for writing
+        let _write_lock = self.file_lock.write()
+            .map_err(|_| "Failed to acquire write lock for writing tournament winners")?;
+        
+        // Read existing history first
+        let mut history = Self::read_tournament_history_from_file(&self.file_path)?;
+        
+        // Add new tournament with winners
+        if !winners.is_empty() {
+            history.add_tournament(winners.to_vec(), player_count);
+        }
+        
+        // Write updated history back
+        Self::write_tournament_history_to_file(&self.file_path, &history)
+    }
+    
+    fn validate_player_count(&self, player_count: i32) -> Result<(), String> {
+        let _read_lock = self.file_lock.read()
+            .map_err(|_| "Failed to acquire read lock for validation")?;
+        
+        let history = Self::read_tournament_history_from_file(&self.file_path)?;
+        history.validate_player_count(player_count)
     }
 }

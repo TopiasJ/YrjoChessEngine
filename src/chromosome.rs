@@ -129,3 +129,60 @@ pub fn init_new_chromosomes(amount: i32, variance: f32) -> Vec<Chromosome> {
     }
     chromosomes
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TournamentRecord {
+    pub tournament_id: u32,
+    pub timestamp: String,
+    pub player_count: i32,
+    pub winners: Vec<Chromosome>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TournamentHistory {
+    pub format_version: String,
+    pub tournaments: Vec<TournamentRecord>,
+}
+
+impl TournamentHistory {
+    pub fn new() -> Self {
+        Self {
+            format_version: "1.0".to_string(),
+            tournaments: Vec::new(),
+        }
+    }
+    
+    pub fn add_tournament(&mut self, winners: Vec<Chromosome>, player_count: i32) {
+        let tournament_id = self.tournaments.len() as u32 + 1;
+        let timestamp = chrono::Utc::now().to_rfc3339();
+        
+        let record = TournamentRecord {
+            tournament_id,
+            timestamp,
+            player_count,
+            winners,
+        };
+        
+        self.tournaments.push(record);
+    }
+    
+    pub fn get_latest_winners(&self) -> Vec<Chromosome> {
+        self.tournaments
+            .last()
+            .map(|tournament| tournament.winners.clone())
+            .unwrap_or_default()
+    }
+    
+    pub fn validate_player_count(&self, requested_player_count: i32) -> Result<(), String> {
+        if let Some(latest_tournament) = self.tournaments.last() {
+            if latest_tournament.player_count != requested_player_count {
+                return Err(format!(
+                    "Player count mismatch: Previous tournament used {} players, but {} requested. Use the same player count to continue evolution.",
+                    latest_tournament.player_count,
+                    requested_player_count
+                ));
+            }
+        }
+        Ok(())
+    }
+}
