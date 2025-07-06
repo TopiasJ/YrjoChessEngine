@@ -55,11 +55,11 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
             Color::Black => best_moves[selected_index],
         };
         
-        let color: String = match board.side_to_move() {
-            Color::White => "White".to_string(),
-            Color::Black => "Black".to_string(),
-        };
-        println!("value for selected move for {0}: {1}", color, selected_move.1);
+        //let color: String = match board.side_to_move() {
+        //    Color::White => "White".to_string(),
+        //    Color::Black => "Black".to_string(),
+        //};
+        // println!("value for selected move for {0}: {1}", color, selected_move.1);
         Some(selected_move.0)
     }
 }

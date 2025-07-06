@@ -15,8 +15,8 @@ pub fn tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, dept
     let mut current_round_players = players;
     let mut round_number = 1;
     
-    // Keep playing rounds until we have fewer than 2 players
-    while current_round_players.len() >= 2 {
+    // Keep playing rounds until we have fewer than 2 players or reach max 2 rounds
+    while current_round_players.len() >= 2 && round_number <= 2 {
         println!("\n=== ROUND {round_number} ===");
         println!("Players in this round: {}", current_round_players.len());
         
@@ -29,22 +29,16 @@ pub fn tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, dept
         }
         
         // If we have winners, do crossover and mutation
-        if winners.len() > 1 {
+        if winners.len() > 1 && round_number < 2 {
             println!("\n=== CROSSOVER AND MUTATION ===");
             let new_generation = do_crossover_and_mutation(winners, wanted_chromosome_count);
             current_round_players = new_generation;
         } else {
-            // Only one winner - tournament complete
+            // Only one winner or reached max rounds - tournament complete
             current_round_players = winners;
         }
         
         round_number += 1;
-        
-        // Safety check to prevent infinite loops
-        if round_number > 10 {
-            println!("Maximum rounds reached, ending tournament");
-            break;
-        }
     }
     
     if let Some(champion) = current_round_players.first() {
@@ -151,7 +145,15 @@ fn play_chess_match(player1: Chromosome, player2: Chromosome, depth: i32) -> i32
         
         // Prevent infinite games
         if move_count >= max_moves {
-            return 0; // Draw
+            // Use default evaluator to determine winner based on material
+            let evaluation = crate::evaluator::Evaluator::evaluate(board);
+            if evaluation > 0 {
+                return 1; // White (player1) wins
+            } else if evaluation < 0 {
+                return -1; // Black (player2) wins
+            } else {
+                return 0; // Draw (equal material)
+            }
         }
         
         // Get move from appropriate player
