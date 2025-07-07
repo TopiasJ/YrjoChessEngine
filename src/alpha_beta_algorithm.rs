@@ -187,7 +187,7 @@ impl AlphaBetaAlgorithm {
         
         // Then, collect non-capture moves
         let mut non_capture_moves = MoveGen::new_legal(board);
-        non_capture_moves.set_iterator_mask(!EMPTY);
+        non_capture_moves.set_iterator_mask(!*targets);
         moves.extend(non_capture_moves);
         
         moves

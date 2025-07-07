@@ -1,5 +1,6 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::process::Command;
 
 // Default piece values for chess evaluation
 const DEFAULT_PAWN_VALUE: i32 = 100;
@@ -130,12 +131,51 @@ pub fn init_new_chromosomes(amount: i32, variance: f32) -> Vec<Chromosome> {
     chromosomes
 }
 
+/// Gets the current project version combining git hash and cargo version
+pub fn get_project_version() -> String {
+    // Try environment variable first (useful for CI/CD)
+    if let Ok(version) = std::env::var("YRJO_VERSION") {
+        return version;
+    }
+    
+    let git_hash = get_git_hash();
+    let cargo_version = get_cargo_version();
+    
+    match (git_hash, cargo_version) {
+        (Some(hash), Some(version)) => format!("{}-{}", version, hash),
+        (Some(hash), None) => format!("unknown-{}", hash),
+        (None, Some(version)) => version,
+        (None, None) => "unknown".to_string(),
+    }
+}
+
+/// Gets the current git commit hash (short form)
+fn get_git_hash() -> Option<String> {
+    Command::new("git")
+        .args(&["rev-parse", "--short", "HEAD"])
+        .output()
+        .ok()
+        .and_then(|output| {
+            if output.status.success() {
+                Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+            } else {
+                None
+            }
+        })
+}
+
+/// Gets the cargo version from Cargo.toml
+fn get_cargo_version() -> Option<String> {
+    option_env!("CARGO_PKG_VERSION").map(|s| s.to_string())
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TournamentRecord {
     pub tournament_id: u32,
     pub timestamp: String,
     pub player_count: i32,
     pub winners: Vec<Chromosome>,
+    pub version: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -155,12 +195,14 @@ impl TournamentHistory {
     pub fn add_tournament(&mut self, winners: Vec<Chromosome>, player_count: i32) {
         let tournament_id = self.tournaments.len() as u32 + 1;
         let timestamp = chrono::Utc::now().to_rfc3339();
+        let version = get_project_version();
         
         let record = TournamentRecord {
             tournament_id,
             timestamp,
             player_count,
             winners,
+            version,
         };
         
         self.tournaments.push(record);

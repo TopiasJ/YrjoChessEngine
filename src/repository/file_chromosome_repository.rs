@@ -73,16 +73,6 @@ impl FileChromosomeRepository {
             .map_err(|e| format!("Failed to parse tournament history JSON: {e}"))
     }
     
-    #[allow(dead_code)]
-    fn write_chromosomes_to_file(file_path: &Path, chromosomes: &[Chromosome]) -> Result<(), String> {
-        // Legacy method - convert to tournament history format
-        let mut history = TournamentHistory::new();
-        if !chromosomes.is_empty() {
-            history.add_tournament(chromosomes.to_vec(), chromosomes.len() as i32);
-        }
-        Self::write_tournament_history_to_file(file_path, &history)
-    }
-    
     fn write_tournament_history_to_file(file_path: &Path, history: &TournamentHistory) -> Result<(), String> {
         // Use atomic write operation: write to temporary file first, then rename
         let temp_path = file_path.with_extension("tmp");

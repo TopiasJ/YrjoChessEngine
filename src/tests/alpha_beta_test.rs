@@ -31,7 +31,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn checkmate4() {
         let board = Board::from_str("8/8/8/5k1K/6r1/8/8/8 w - - 10 6").unwrap(); //4:lla
         let required_moves = game_loop(board, 8);
@@ -40,7 +39,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn checkmate5() {
         let board: Board = Board::from_str("8/8/4k1K1/8/6r1/8/8/8 w - - 8 5").unwrap(); //5:lla
         let required_moves = game_loop(board, 10);
