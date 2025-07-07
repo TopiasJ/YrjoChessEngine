@@ -1,5 +1,5 @@
-use chess::{Board, Color, Piece};
 use crate::chromosome::Chromosome;
+use chess::{Board, Color, Piece};
 pub struct Evaluator;
 
 impl Evaluator {
@@ -50,5 +50,4 @@ impl Evaluator {
             },
         }
     }
-
 }

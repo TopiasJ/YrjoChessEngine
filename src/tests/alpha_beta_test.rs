@@ -45,7 +45,7 @@ mod tests {
 
         assert_eq!(required_moves, 10)
     }
-    
+
     #[test]
     #[ignore]
     fn checkmate6() {

@@ -37,19 +37,11 @@ impl Chromosome {
         let mut rng = rand::rng();
         Self {
             pawn_value: DEFAULT_PAWN_VALUE,
-            knight_value: rng.random_range(
-                (DEFAULT_KNIGHT_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_KNIGHT_VALUE as f32 * (1.0 + variance)) as i32
-            ),
-            bishop_value: rng.random_range(
-                (DEFAULT_BISHOP_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_BISHOP_VALUE as f32 * (1.0 + variance)) as i32
-            ),
-            rook_value: rng.random_range(
-                (DEFAULT_ROOK_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_ROOK_VALUE as f32 * (1.0 + variance)) as i32
-            ),
-            queen_value: rng.random_range(
-                (DEFAULT_QUEEN_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_QUEEN_VALUE as f32 * (1.0 + variance)) as i32
-            ),
-            king_value: DEFAULT_KING_VALUE
+            knight_value: rng.random_range((DEFAULT_KNIGHT_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_KNIGHT_VALUE as f32 * (1.0 + variance)) as i32),
+            bishop_value: rng.random_range((DEFAULT_BISHOP_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_BISHOP_VALUE as f32 * (1.0 + variance)) as i32),
+            rook_value: rng.random_range((DEFAULT_ROOK_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_ROOK_VALUE as f32 * (1.0 + variance)) as i32),
+            queen_value: rng.random_range((DEFAULT_QUEEN_VALUE as f32 * (1.0 - variance)) as i32..(DEFAULT_QUEEN_VALUE as f32 * (1.0 + variance)) as i32),
+            king_value: DEFAULT_KING_VALUE,
         }
     }
 
@@ -92,27 +84,19 @@ impl Chromosome {
             match what_to_mutate {
                 1 => {
                     let original_value = self.knight_value;
-                    self.knight_value = rng.random_range(
-                        original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32
-                    );
+                    self.knight_value = rng.random_range(original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32);
                 }
                 2 => {
                     let original_value = self.bishop_value;
-                    self.bishop_value = rng.random_range(
-                        original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32
-                    );
+                    self.bishop_value = rng.random_range(original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32);
                 }
                 3 => {
                     let original_value = self.rook_value;
-                    self.rook_value = rng.random_range(
-                        original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32
-                    );
+                    self.rook_value = rng.random_range(original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32);
                 }
                 4 => {
                     let original_value = self.queen_value;
-                    self.queen_value = rng.random_range(
-                        original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32
-                    );
+                    self.queen_value = rng.random_range(original_value - (original_value as f32 * variance) as i32..original_value + (original_value as f32 * variance) as i32);
                 }
                 _ => {}
             }
@@ -120,7 +104,6 @@ impl Chromosome {
         }
     }
 }
-
 
 pub fn init_new_chromosomes(amount: i32, variance: f32) -> Vec<Chromosome> {
     let mut chromosomes = Vec::new();
@@ -137,10 +120,10 @@ pub fn get_project_version() -> String {
     if let Ok(version) = std::env::var("YRJO_VERSION") {
         return version;
     }
-    
+
     let git_hash = get_git_hash();
     let cargo_version = get_cargo_version();
-    
+
     match (git_hash, cargo_version) {
         (Some(hash), Some(version)) => format!("{}-{}", version, hash),
         (Some(hash), None) => format!("unknown-{}", hash),
@@ -151,17 +134,13 @@ pub fn get_project_version() -> String {
 
 /// Gets the current git commit hash (short form)
 fn get_git_hash() -> Option<String> {
-    Command::new("git")
-        .args(&["rev-parse", "--short", "HEAD"])
-        .output()
-        .ok()
-        .and_then(|output| {
-            if output.status.success() {
-                Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
-            } else {
-                None
-            }
-        })
+    Command::new("git").args(&["rev-parse", "--short", "HEAD"]).output().ok().and_then(|output| {
+        if output.status.success() {
+            Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+        } else {
+            None
+        }
+    })
 }
 
 /// Gets the cargo version from Cargo.toml
@@ -191,12 +170,12 @@ impl TournamentHistory {
             tournaments: Vec::new(),
         }
     }
-    
+
     pub fn add_tournament(&mut self, winners: Vec<Chromosome>, player_count: i32) {
         let tournament_id = self.tournaments.len() as u32 + 1;
         let timestamp = chrono::Utc::now().to_rfc3339();
         let version = get_project_version();
-        
+
         let record = TournamentRecord {
             tournament_id,
             timestamp,
@@ -204,24 +183,20 @@ impl TournamentHistory {
             winners,
             version,
         };
-        
+
         self.tournaments.push(record);
     }
-    
+
     pub fn get_latest_winners(&self) -> Vec<Chromosome> {
-        self.tournaments
-            .last()
-            .map(|tournament| tournament.winners.clone())
-            .unwrap_or_default()
+        self.tournaments.last().map(|tournament| tournament.winners.clone()).unwrap_or_default()
     }
-    
+
     pub fn validate_player_count(&self, requested_player_count: i32) -> Result<(), String> {
         if let Some(latest_tournament) = self.tournaments.last() {
             if latest_tournament.player_count != requested_player_count {
                 return Err(format!(
                     "Player count mismatch: Previous tournament used {} players, but {} requested. Use the same player count to continue evolution.",
-                    latest_tournament.player_count,
-                    requested_player_count
+                    latest_tournament.player_count, requested_player_count
                 ));
             }
         }

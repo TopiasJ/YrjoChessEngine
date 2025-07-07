@@ -1,23 +1,43 @@
 Point of this project was to learn about Rust programming language. 
 
-This is initially trying to duplicate my earlier work on python and trying to have good performance. https://github.com/TopiasJ/ChessEngine (Still missing all evolutionary algrorithm stuffs). 
+This is initially trying to duplicate my earlier work on python and trying to have good performance. https://github.com/TopiasJ/ChessEngine 
 
 And maybe later it will be used to test different AI stuffs, especially Deep Learning. And could join to AI chess tournaments.
 
-### commands
+### Commands
+```sh
 cargo clippy
-
+```
+```sh
 cargo clippy --fix
-
+```
+```sh
 cargo fmt
-
+```
+```sh
 cargo upgrade
-
+```
+```sh
 cargo build
-
+```
+```sh
 cargo build --profile release-lto
-
+```
+```sh
+cargo test
+```
+```sh
+cargo run --profile=release-lto -- single
+```
+```sh
+cargo run --profile=release-lto -- single --depth 2 --max-moves 30
+```
+```sh
+cargo run --profile=release-lto -- tournament
+```
+```sh
 // cargo bench
+```
 
 ## 🖥️ Command-Line Usage
 
@@ -25,10 +45,10 @@ The engine now supports two main modes via subcommands:
 
 ### Single Game Mode
 
-Run a single chess game between two AIs. Example (fast run):
-```sh
-cargo run -- single --depth 2 --max-moves 30
-```
+- Run a single chess game between two AIs. Example (fast run):
+  ```sh
+  cargo run -- single --depth 2 --max-moves 30
+  ```
 
 - Set calculation depth to 3:
   ```sh

@@ -3,17 +3,17 @@ mod chromosome;
 mod evaluator;
 mod repository;
 mod tests;
-mod visualizer;
 mod tournament;
+mod visualizer;
 
 use crate::evaluator::Evaluator;
+use crate::repository::{FileChromosomeRepository, MemoryChromosomeRepository};
+use crate::tournament::tournament;
 use crate::{alpha_beta_algorithm::AlgorithmTraits, visualizer::Visualizer};
 use alpha_beta_algorithm::AlphaBetaAlgorithm;
 use chess::{Board, BoardStatus, Color};
 use clap::{Parser, Subcommand};
 use std::str::FromStr;
-use crate::repository::{MemoryChromosomeRepository, FileChromosomeRepository};
-use crate::tournament::tournament;
 
 #[derive(Parser)]
 #[command(name = "YrjoChessEngine")]
