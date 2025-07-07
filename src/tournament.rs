@@ -386,7 +386,7 @@ fn run_matches_parallel(matches: Vec<(Chromosome, Chromosome)>, depth: i32) -> V
         match handle.join() {
             Ok(result) => results.push(result),
             Err(e) => {
-                eprintln!("Thread panicked: {:?}", e);
+                eprintln!("Thread panicked: {e:?}");
                 // Continue with other matches
             }
         }
