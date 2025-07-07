@@ -93,7 +93,7 @@ fn randomize_opponents(players: Vec<Chromosome>) -> Vec<(Chromosome, Chromosome)
 
 fn play_chess_match(player1: Chromosome, player2: Chromosome, depth: i32) -> i32 {
     let mut board = Board::default();
-    let mut alg = AlphaBetaAlgorithm;
+    let mut alg = AlphaBetaAlgorithm::new();
     let mut move_count = 0;
     let max_moves = 100; // Prevent infinite games
 

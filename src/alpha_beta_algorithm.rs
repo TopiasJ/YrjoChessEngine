@@ -3,15 +3,51 @@ use crate::evaluator::Evaluator;
 use chess::{Board, ChessMove, Color, MoveGen, EMPTY};
 use rand::Rng;
 
+#[derive(Debug, Clone)]
+pub struct SearchStats {
+    pub nodes_searched: u64,
+    pub evaluations: u64,
+    pub cutoffs: u64,
+    pub terminal_nodes: u64,
+}
+
+impl SearchStats {
+    pub fn new() -> Self {
+        Self {
+            nodes_searched: 0,
+            evaluations: 0,
+            cutoffs: 0,
+            terminal_nodes: 0,
+        }
+    }
+}
+
 pub trait AlgorithmTraits {
     fn get_best_move(&mut self, board: Board, depth: i32) -> Option<ChessMove>;
     fn get_best_move_with_chromosome(&mut self, board: Board, depth: i32, chromosome: &Chromosome) -> Option<ChessMove>;
+    fn get_best_move_with_stats(&mut self, board: Board, depth: i32) -> (Option<ChessMove>, SearchStats);
+    fn get_best_move_with_chromosome_and_stats(&mut self, board: Board, depth: i32, chromosome: &Chromosome) -> (Option<ChessMove>, SearchStats);
 }
 
-pub struct AlphaBetaAlgorithm;
+pub struct AlphaBetaAlgorithm {
+    pub stats: SearchStats,
+}
+
+impl AlphaBetaAlgorithm {
+    pub fn new() -> Self {
+        Self {
+            stats: SearchStats::new(),
+        }
+    }
+    
+    pub fn reset_stats(&mut self) {
+        self.stats = SearchStats::new();
+    }
+}
 
 impl AlgorithmTraits for AlphaBetaAlgorithm {
     fn get_best_move(&mut self, board: Board, depth: i32) -> Option<ChessMove> {
+        self.reset_stats();
         let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
         let moves: Vec<ChessMove> = MoveGen::new_legal(&board).collect();
 
@@ -38,6 +74,7 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
     }
 
     fn get_best_move_with_chromosome(&mut self, board: Board, depth: i32, chromosome: &Chromosome) -> Option<ChessMove> {
+        self.reset_stats();
         let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
         let moves: Vec<ChessMove> = MoveGen::new_legal(&board).collect();
 
@@ -62,6 +99,58 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
         // println!("value for selected move for {0}: {1}", color, selected_move.1);
         Some(selected_move.0)
     }
+    
+    fn get_best_move_with_stats(&mut self, board: Board, depth: i32) -> (Option<ChessMove>, SearchStats) {
+        self.reset_stats();
+        let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
+        let moves: Vec<ChessMove> = MoveGen::new_legal(&board).collect();
+
+        // Evaluate all moves
+        for mov in moves {
+            self.calc_one_move(&mut best_moves, mov, board, depth, None);
+        }
+
+        // Sort moves by evaluation (best for current player first)
+        best_moves.sort_by_key(|k| k.1);
+
+        let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move());
+        let selected_move = if let Some(idx) = selected_index {
+            Some(match board.side_to_move() {
+                Color::White => best_moves[best_moves.len() - 1 - idx].0,
+                Color::Black => best_moves[idx].0,
+            })
+        } else {
+            None
+        };
+
+        (selected_move, self.stats.clone())
+    }
+    
+    fn get_best_move_with_chromosome_and_stats(&mut self, board: Board, depth: i32, chromosome: &Chromosome) -> (Option<ChessMove>, SearchStats) {
+        self.reset_stats();
+        let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
+        let moves: Vec<ChessMove> = MoveGen::new_legal(&board).collect();
+
+        // Evaluate all moves
+        for mov in moves {
+            self.calc_one_move(&mut best_moves, mov, board, depth, Some(chromosome));
+        }
+
+        // Sort moves by evaluation (best for current player first)
+        best_moves.sort_by_key(|k| k.1);
+
+        let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move());
+        let selected_move = if let Some(idx) = selected_index {
+            Some(match board.side_to_move() {
+                Color::White => best_moves[best_moves.len() - 1 - idx].0,
+                Color::Black => best_moves[idx].0,
+            })
+        } else {
+            None
+        };
+
+        (selected_move, self.stats.clone())
+    }
 }
 
 fn get_random_from_multiple_best_moves(best_moves: &Vec<(ChessMove, i32)>, color: Color) -> Option<usize> {
@@ -81,7 +170,7 @@ fn get_random_from_multiple_best_moves(best_moves: &Vec<(ChessMove, i32)>, color
 
 impl AlphaBetaAlgorithm {
     #[inline]
-    fn calc_one_move(&self, best_moves: &mut Vec<(ChessMove, i32)>, a_move: ChessMove, test_game: Board, depth: i32, chromosome: Option<&Chromosome>) {
+    fn calc_one_move(&mut self, best_moves: &mut Vec<(ChessMove, i32)>, a_move: ChessMove, test_game: Board, depth: i32, chromosome: Option<&Chromosome>) {
         let new_board = test_game.make_move_new(a_move);
         let result: i32 = match new_board.side_to_move() {
             Color::White => self.alpha_beta_max(new_board, -999999, 999999, depth, chromosome),
@@ -90,14 +179,18 @@ impl AlphaBetaAlgorithm {
         best_moves.push((a_move, result));
     }
 
-    fn alpha_beta_max(&self, board: Board, alpha_before: i32, beta: i32, depth_left_before: i32, chromosome: Option<&Chromosome>) -> i32 {
+    pub fn alpha_beta_max(&mut self, board: Board, alpha_before: i32, beta: i32, depth_left_before: i32, chromosome: Option<&Chromosome>) -> i32 {
+        self.stats.nodes_searched += 1;
+        
         // Check for game end conditions
         if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
+            self.stats.terminal_nodes += 1;
             return terminal_score;
         }
 
         // Leaf node evaluation
         if depth_left_before == 0 {
+            self.stats.evaluations += 1;
             return match chromosome {
                 Some(chr) => Evaluator::evaluate_with_chromosome(board, chr),
                 None => Evaluator::evaluate(board),
@@ -112,6 +205,7 @@ impl AlphaBetaAlgorithm {
             let score = self.alpha_beta_min(new_board, alpha, beta, depth_left_before - 1, chromosome);
 
             if score >= beta {
+                self.stats.cutoffs += 1;
                 return beta; // Beta cutoff
             }
             if score > alpha {
@@ -122,14 +216,18 @@ impl AlphaBetaAlgorithm {
         alpha
     }
 
-    fn alpha_beta_min(&self, board: Board, alpha: i32, beta_before: i32, depth_left_before: i32, chromosome: Option<&Chromosome>) -> i32 {
+    pub fn alpha_beta_min(&mut self, board: Board, alpha: i32, beta_before: i32, depth_left_before: i32, chromosome: Option<&Chromosome>) -> i32 {
+        self.stats.nodes_searched += 1;
+        
         // Check for game end conditions
         if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
+            self.stats.terminal_nodes += 1;
             return terminal_score;
         }
 
         // Leaf node evaluation
         if depth_left_before == 0 {
+            self.stats.evaluations += 1;
             return match chromosome {
                 Some(chr) => Evaluator::evaluate_with_chromosome(board, chr),
                 None => Evaluator::evaluate(board),
@@ -144,6 +242,7 @@ impl AlphaBetaAlgorithm {
             let score = self.alpha_beta_max(new_board, alpha, beta, depth_left_before - 1, chromosome);
 
             if score <= alpha {
+                self.stats.cutoffs += 1;
                 return alpha; // Alpha cutoff
             }
             if score < beta {
@@ -175,7 +274,7 @@ impl AlphaBetaAlgorithm {
     }
 
     /// Get moves in order of priority (captures first, then others)
-    fn get_ordered_moves(&self, board: &Board) -> Vec<ChessMove> {
+    pub fn get_ordered_moves(&self, board: &Board) -> Vec<ChessMove> {
         let mut moves: Vec<ChessMove> = Vec::new();
 
         // First, collect capture moves

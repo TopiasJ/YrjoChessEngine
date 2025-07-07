@@ -1,4 +1,5 @@
 mod alpha_beta_algorithm;
+mod benchmark;
 mod chromosome;
 mod evaluator;
 mod repository;
@@ -6,6 +7,7 @@ mod tests;
 mod tournament;
 mod visualizer;
 
+use crate::benchmark::BenchmarkRunner;
 use crate::evaluator::Evaluator;
 use crate::repository::{FileChromosomeRepository, MemoryChromosomeRepository};
 use crate::tournament::tournament;
@@ -30,6 +32,8 @@ pub enum Commands {
     Single(SingleArgs),
     /// Run a tournament
     Tournament(TournamentArgs),
+    /// Run performance benchmarks
+    Benchmark(BenchmarkArgs),
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -75,6 +79,19 @@ pub struct TournamentArgs {
     pub tournament_count: u32,
 }
 
+#[derive(Parser, Debug, Clone)]
+pub struct BenchmarkArgs {
+    /// Calculation depth (half-moves) for benchmark
+    #[arg(short = 'd', long, default_value = "4")]
+    pub depth: i32,
+    /// Custom FEN position to benchmark (optional, uses standard positions if not provided)
+    #[arg(short = 'f', long)]
+    pub fen: Option<String>,
+    /// Number of benchmark iterations to run for averaging
+    #[arg(short = 'i', long, default_value = "1")]
+    pub iterations: u32,
+}
+
 fn run_single_game(args: &SingleArgs) {
     // Validate depth
     if args.depth < 1 || args.depth > 10 {
@@ -104,7 +121,7 @@ fn run_single_game(args: &SingleArgs) {
     println!("---");
 
     let mut move_amount = 0;
-    let mut alg = AlphaBetaAlgorithm;
+    let mut alg = AlphaBetaAlgorithm::new();
     loop {
         let ai_move = match alg.get_best_move(board, args.depth) {
             Some(mv) => mv,
@@ -153,6 +170,51 @@ fn run_single_game(args: &SingleArgs) {
     }
 }
 
+fn run_benchmark(args: &BenchmarkArgs) {
+    let mut runner = BenchmarkRunner::new();
+    
+    if let Some(fen) = &args.fen {
+        // Benchmark a specific position
+        println!("Benchmarking custom position at depth {}", args.depth);
+        
+        for i in 1..=args.iterations {
+            if args.iterations > 1 {
+                println!("Iteration {}/{}", i, args.iterations);
+            }
+            
+            match runner.benchmark_position("Custom Position", fen, args.depth) {
+                Ok(result) => {
+                    println!("{}: {} nodes/sec ({} nodes in {} ms)", 
+                            result.position_name, 
+                            result.nodes_per_second as u64, 
+                            result.nodes_searched, 
+                            result.time_ms);
+                }
+                Err(e) => {
+                    eprintln!("Error benchmarking position: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    } else {
+        // Run standard benchmark suite
+        for i in 1..=args.iterations {
+            if args.iterations > 1 {
+                println!("\nBenchmark iteration {}/{}", i, args.iterations);
+            }
+            
+            if let Err(e) = runner.run_standard_benchmark(args.depth) {
+                eprintln!("Error running benchmark: {}", e);
+                std::process::exit(1);
+            }
+            
+            if i < args.iterations {
+                runner.results.clear(); // Clear results for next iteration
+            }
+        }
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
     match &cli.command {
@@ -177,5 +239,6 @@ fn main() {
                 tournament(args.wanted_chromosome_count, args.depth, args.tournament_count, &mut repo);
             }
         }
+        Commands::Benchmark(args) => run_benchmark(args),
     }
 }

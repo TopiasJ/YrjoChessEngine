@@ -66,7 +66,7 @@ mod tests {
 
     fn game_loop(mut board: Board, calculation_half_depth: i32) -> i32 {
         let mut move_amount = 0;
-        let mut alg = AlphaBetaAlgorithm;
+        let mut alg = AlphaBetaAlgorithm::new();
         loop {
             let ai_move = alg.get_best_move(board, calculation_half_depth).unwrap();
             board = board.make_move_new(ai_move);
