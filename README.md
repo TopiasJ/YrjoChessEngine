@@ -62,5 +62,21 @@ Run a tournament between chromosomes (for evolutionary algorithm experiments):
 ```sh
 cargo run -- tournament --wanted-chromosome-count 4 --depth 2
 ```
-- `--wanted-chromosome-count` sets the number of chromosomes (default: 10)
-- `--depth` sets the calculation depth (default: 5)
+
+#### Parameters:
+- `--wanted-chromosome-count` / `-n`: Number of chromosomes in tournament (default: 10)
+- `--depth` / `-d`: AI calculation depth (default: 5)
+- `--file-path` / `-f`: Path for persistent chromosome storage (optional)
+- `--tournament-count` / `-t`: Number of tournaments to run (default: 0 = infinite)
+
+#### Examples:
+```sh
+# Run infinite tournaments with 4 chromosomes (memory only)
+cargo run -- tournament --wanted-chromosome-count 4 --depth 2
+
+# Run with persistent evolution
+cargo run -- tournament --wanted-chromosome-count 4 --depth 2 --file-path evolution.json
+
+# Run exactly 5 tournaments
+cargo run -- tournament --wanted-chromosome-count 4 --depth 2 --file-path evolution.json --tournament-count 5
+```

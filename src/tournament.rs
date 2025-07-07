@@ -64,31 +64,22 @@ fn run_single_tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i3
         
         let matches = randomize_opponents(current_round_players);
         let winners = run_matches_parallel(matches, depth);
-        
-        // If we have winners, do crossover and mutation
-        if winners.len() > 1 && round_number < 2 {
-            println!("\n=== CROSSOVER AND MUTATION ===");
-            let new_generation = do_crossover_and_mutation(winners, wanted_chromosome_count);
-            current_round_players = new_generation;
-        } else {
-            // Only one winner or reached max rounds - tournament complete
-            current_round_players = winners;
-        }
-        
+
+        current_round_players = winners;
         round_number += 1;
     }
-    
-    if let Some(champion) = current_round_players.first() {
-        println!("\n🏆 TOURNAMENT CHAMPION 🏆");
-        println!("Champion: {champion:?}");
-        
-        // Save tournament winners to repository with metadata
-        if let Err(e) = old_chromosomes_repository.write_tournament_winners_with_count(&current_round_players, wanted_chromosome_count) {
-            eprintln!("Failed to save tournament results: {e}");
-        } else {
-            println!("Tournament results saved to repository!");
-        }
+
+    println!("\n=== CROSSOVER AND MUTATION ===");
+    let new_generation = do_crossover_and_mutation(current_round_players, wanted_chromosome_count);
+
+    // Save tournament winners to repository with metadata
+    if let Err(e) = old_chromosomes_repository.write_tournament_winners_with_count(&new_generation, wanted_chromosome_count) {
+        eprintln!("Failed to save tournament results: {e}");
+        std::process::exit(-1);
+    } else {
+        println!("Tournament results saved to repository!");
     }
+
 }
 fn randomize_opponents(players: Vec<Chromosome>) -> Vec<(Chromosome, Chromosome)> {
     let mut matches = Vec::new();
