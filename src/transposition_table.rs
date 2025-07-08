@@ -1,6 +1,5 @@
 use chess::{Board, ChessMove, Color, Piece};
 use rand::{Rng, SeedableRng, rngs::StdRng};
-use std::collections::HashMap;
 
 /// Zobrist hash keys for position hashing
 #[derive(Debug)]
@@ -64,17 +63,29 @@ impl ZobristKeys {
         }
     }
     
-    /// Compute Zobrist hash for a position
+    /// Compute Zobrist hash for a position (optimized version)
+    #[inline]
     pub fn hash_position(&self, board: &Board) -> u64 {
         let mut hash = 0u64;
         
-        // Hash pieces on squares
-        for square in chess::ALL_SQUARES {
-            if let Some(piece) = board.piece_on(square) {
-                let color = board.color_on(square).unwrap();
-                let piece_idx = Self::piece_index(piece, color);
-                let square_idx = square.to_index();
-                hash ^= self.piece_square[piece_idx][square_idx];
+        // Hash pieces using bitboards for better performance
+        for color in [Color::White, Color::Black] {
+            let color_pieces = board.color_combined(color);
+            for piece_type in [
+                chess::Piece::Pawn,
+                chess::Piece::Knight,
+                chess::Piece::Bishop,
+                chess::Piece::Rook,
+                chess::Piece::Queen,
+                chess::Piece::King,
+            ] {
+                let piece_bitboard = board.pieces(piece_type) & color_pieces;
+                let piece_idx = Self::piece_index(piece_type, color);
+                
+                // Iterate through set bits efficiently
+                for square in piece_bitboard {
+                    hash ^= self.piece_square[piece_idx][square.to_index()];
+                }
             }
         }
         
@@ -83,26 +94,18 @@ impl ZobristKeys {
             hash ^= self.side_to_move;
         }
         
-        // Hash castling rights
-        let mut castling_idx = 0;
-        if board.castle_rights(Color::White).has_kingside() {
-            castling_idx |= 1;
-        }
-        if board.castle_rights(Color::White).has_queenside() {
-            castling_idx |= 2;
-        }
-        if board.castle_rights(Color::Black).has_kingside() {
-            castling_idx |= 4;
-        }
-        if board.castle_rights(Color::Black).has_queenside() {
-            castling_idx |= 8;
-        }
+        // Hash castling rights (optimized)
+        let white_rights = board.castle_rights(Color::White);
+        let black_rights = board.castle_rights(Color::Black);
+        let castling_idx = (white_rights.has_kingside() as usize)
+            | ((white_rights.has_queenside() as usize) << 1)
+            | ((black_rights.has_kingside() as usize) << 2)
+            | ((black_rights.has_queenside() as usize) << 3);
         hash ^= self.castling[castling_idx];
         
         // Hash en passant
         if let Some(en_passant_square) = board.en_passant() {
-            let file = en_passant_square.get_file().to_index();
-            hash ^= self.en_passant[file];
+            hash ^= self.en_passant[en_passant_square.get_file().to_index()];
         }
         
         hash
@@ -152,37 +155,46 @@ impl TTEntry {
 
 /// Transposition Table for storing position evaluations
 pub struct TranspositionTable {
-    /// The hash table storing entries
-    table: HashMap<u64, TTEntry>,
+    /// The hash table storing entries - using Vec for better performance
+    table: Vec<Option<TTEntry>>,
     /// Zobrist keys for hashing
     zobrist: ZobristKeys,
     /// Current age/generation
     current_age: u8,
-    /// Maximum size (number of entries)
-    max_size: usize,
-    /// Statistics
+    /// Size mask for modulo operation (table size must be power of 2)
+    size_mask: usize,
+    /// Statistics (only in debug mode to reduce overhead)
+    #[cfg(debug_assertions)]
     pub hits: u64,
+    #[cfg(debug_assertions)]
     pub misses: u64,
+    #[cfg(debug_assertions)]
     pub collisions: u64,
 }
 
 impl TranspositionTable {
-    /// Create new transposition table with specified size
-    pub fn new(max_size: usize) -> Self {
+    /// Create new transposition table with specified size (must be power of 2)
+    pub fn new(size: usize) -> Self {
+        // Ensure size is power of 2
+        let size = if size.is_power_of_two() { size } else { size.next_power_of_two() };
+        
         Self {
-            table: HashMap::with_capacity(max_size),
+            table: vec![None; size],
             zobrist: ZobristKeys::new(),
             current_age: 0,
-            max_size,
+            size_mask: size - 1,
+            #[cfg(debug_assertions)]
             hits: 0,
+            #[cfg(debug_assertions)]
             misses: 0,
+            #[cfg(debug_assertions)]
             collisions: 0,
         }
     }
     
     /// Create default transposition table (1M entries)
     pub fn default() -> Self {
-        Self::new(1_000_000)
+        Self::new(1_048_576) // 2^20 = 1M entries
     }
     
     /// Get Zobrist hash for a position
@@ -191,27 +203,34 @@ impl TranspositionTable {
     }
     
     /// Probe the transposition table
+    #[inline]
     pub fn probe(&mut self, key: u64) -> Option<&TTEntry> {
-        if let Some(entry) = self.table.get(&key) {
+        let index = (key as usize) & self.size_mask;
+        if let Some(entry) = &self.table[index] {
             if entry.key == key {
-                self.hits += 1;
+                #[cfg(debug_assertions)]
+                { self.hits += 1; }
                 Some(entry)
             } else {
-                self.collisions += 1;
+                #[cfg(debug_assertions)]
+                { self.collisions += 1; }
                 None
             }
         } else {
-            self.misses += 1;
+            #[cfg(debug_assertions)]
+            { self.misses += 1; }
             None
         }
     }
     
     /// Store entry in transposition table
+    #[inline]
     pub fn store(&mut self, key: u64, depth: i32, node_type: NodeType, score: i32, best_move: Option<ChessMove>) {
+        let index = (key as usize) & self.size_mask;
         let entry = TTEntry::new(key, depth, node_type, score, best_move, self.current_age);
         
         // Simple replacement strategy: replace if deeper or same depth but newer age
-        let should_replace = if let Some(existing) = self.table.get(&key) {
+        let should_replace = if let Some(existing) = &self.table[index] {
             existing.key != key || // Hash collision
             depth >= existing.depth || // Deeper search
             (depth == existing.depth && self.current_age > existing.age) // Same depth but newer
@@ -220,19 +239,8 @@ impl TranspositionTable {
         };
         
         if should_replace {
-            // If table is getting too large, clear some old entries
-            if self.table.len() >= self.max_size {
-                self.clear_old_entries();
-            }
-            
-            self.table.insert(key, entry);
+            self.table[index] = Some(entry);
         }
-    }
-    
-    /// Clear old entries when table gets full
-    fn clear_old_entries(&mut self) {
-        let old_age = self.current_age.saturating_sub(2);
-        self.table.retain(|_, entry| entry.age > old_age);
     }
     
     /// Advance age (call at start of new search)
@@ -242,30 +250,49 @@ impl TranspositionTable {
     
     /// Clear the transposition table
     pub fn clear(&mut self) {
-        self.table.clear();
-        self.hits = 0;
-        self.misses = 0;
-        self.collisions = 0;
+        for slot in &mut self.table {
+            *slot = None;
+        }
+        #[cfg(debug_assertions)]
+        {
+            self.hits = 0;
+            self.misses = 0;
+            self.collisions = 0;
+        }
     }
     
     /// Get hit rate as percentage
     pub fn hit_rate(&self) -> f64 {
-        let total = self.hits + self.misses;
-        if total > 0 {
-            (self.hits as f64 / total as f64) * 100.0
-        } else {
-            0.0
+        #[cfg(debug_assertions)]
+        {
+            let total = self.hits + self.misses;
+            if total > 0 {
+                (self.hits as f64 / total as f64) * 100.0
+            } else {
+                0.0
+            }
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            0.0 // No stats in release mode
         }
     }
     
     /// Get table statistics
     pub fn stats(&self) -> (usize, f64, u64, u64, u64) {
-        (
-            self.table.len(),
-            self.hit_rate(),
-            self.hits,
-            self.misses,
-            self.collisions,
-        )
+        #[cfg(debug_assertions)]
+        {
+            (
+                self.table.len(),
+                self.hit_rate(),
+                self.hits,
+                self.misses,
+                self.collisions,
+            )
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            (self.table.len(), 0.0, 0, 0, 0) // No stats in release mode
+        }
     }
 }
