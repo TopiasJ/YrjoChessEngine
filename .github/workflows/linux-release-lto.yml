@@ -1,0 +1,37 @@
+name: Build Linux Release-LTO
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-linux-release-lto:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and target directory
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build release-lto binary
+        run: cargo build --profile release-lto --bin yrjo_chess_engine
+
+      - name: Upload Linux release-lto artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yrjo_chess_engine-linux-release-lto
+          path: target/release-lto/yrjo_chess_engine
+          retention-days: 30
