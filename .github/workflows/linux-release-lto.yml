@@ -29,9 +29,20 @@ jobs:
       - name: Build release-lto binary
         run: cargo build --profile release-lto --bin yrjo_chess_engine
 
-      - name: Upload Linux release-lto artifact
-        uses: actions/upload-artifact@v4
+      - name: Get short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: yrjo_chess_engine-linux-release-lto
-          path: target/release-lto/yrjo_chess_engine
-          retention-days: 30
+          tag_name: build-${{ steps.vars.outputs.sha_short }}
+          name: Latest Build (${{ steps.vars.outputs.sha_short }})
+          body: |
+            Automated build from commit ${{ github.sha }}
+            
+            Built with release-lto profile for optimal performance.
+          files: target/release-lto/yrjo_chess_engine
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
