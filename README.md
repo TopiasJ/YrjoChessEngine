@@ -45,35 +45,44 @@ The engine now supports two main modes via subcommands:
 
 ### Single Game Mode
 
-- Run a single chess game between two AIs. Example (fast run):
-  ```sh
-  cargo run -- single --depth 2 --max-moves 30
-  ```
-
-- Set calculation depth to 3:
-  ```sh
-  cargo run -- single --depth 3
-  ```
-- Start from a custom FEN position:
-  ```sh
-  cargo run -- single --fen "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 4"
-  ```
-- Limit the number of moves to 50:
-  ```sh
-  cargo run -- single --max-moves 50
-  ```
-- Hide board visualization and evaluation:
-  ```sh
-  cargo run -- single --show-board false --show-eval false
-  ```
-- Add a delay between moves (e.g., 500 ms):
-  ```sh
-  cargo run -- single --delay 500
-  ```
-
-You can combine these options as needed. For example:
+Run a single chess game between two AIs:
 ```sh
-cargo run -- single --depth 4 --fen "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 4" --max-moves 60 --show-board true --show-eval true --delay 200
+cargo run -- single --depth 2 --max-moves 30
+```
+
+#### Parameters:
+- `--depth` / `-d`: AI calculation depth in half-moves (default: 5, range: 1-10)
+- `--fen` / `-f`: Starting position in FEN notation (optional, default: standard starting position)
+- `--max-moves` / `-m`: Maximum number of moves before forcing a draw (default: 200)
+- `--show-eval` / `-e`: Show evaluation scores after each move (default: true)
+- `--show-board` / `-b`: Show board visualization after each move (default: true)
+- `--delay` / `-l`: Delay between moves in milliseconds (default: 0)
+
+#### Examples:
+```sh
+# Quick test game with low depth
+cargo run -- single --depth 2 --max-moves 30
+
+# Standard game with default settings
+cargo run -- single
+
+# Full strength game
+cargo run --profile=release-lto -- single --depth 5
+
+# Custom starting position
+cargo run -- single --fen "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 4"
+
+# Silent mode (no visualization)
+cargo run -- single --show-board false --show-eval false
+
+# With visualization delay (500ms between moves)
+cargo run -- single --delay 500
+
+# Limited game length
+cargo run -- single --max-moves 50
+
+# Combined options
+cargo run -- single --depth 4 --fen "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 2 4" --max-moves 60 --delay 200
 ```
 
 ### Tournament Mode
