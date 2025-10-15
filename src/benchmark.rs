@@ -31,6 +31,9 @@ pub struct BenchmarkResult {
     pub evaluations: u64,
     pub cutoffs: u64,
     pub terminal_nodes: u64,
+    pub tt_hits: u64,
+    pub tt_misses: u64,
+    pub tt_collisions: u64,
     pub time_ms: u128,
     pub nodes_per_second: f64,
 }
@@ -50,6 +53,9 @@ impl BenchmarkResult {
             evaluations: stats.evaluations,
             cutoffs: stats.cutoffs,
             terminal_nodes: stats.terminal_nodes,
+            tt_hits: stats.tt_hits,
+            tt_misses: stats.tt_misses,
+            tt_collisions: stats.tt_collisions,
             time_ms,
             nodes_per_second,
         }
@@ -163,6 +169,18 @@ impl BenchmarkRunner {
         if total_nodes > 0 {
             let cutoff_rate = (total_cutoffs as f64 / total_nodes as f64) * 100.0;
             println!("Cutoff rate: {:.1}%", cutoff_rate);
+        }
+        
+        // Show transposition table statistics
+        let total_tt_hits: u64 = self.results.iter().map(|r| r.tt_hits).sum();
+        let total_tt_misses: u64 = self.results.iter().map(|r| r.tt_misses).sum();
+        let total_tt_collisions: u64 = self.results.iter().map(|r| r.tt_collisions).sum();
+        let total_tt_probes = total_tt_hits + total_tt_misses;
+        
+        if total_tt_probes > 0 {
+            let tt_hit_rate = (total_tt_hits as f64 / total_tt_probes as f64) * 100.0;
+            println!("TT hit rate: {:.1}% ({} hits, {} misses, {} collisions)", 
+                    tt_hit_rate, total_tt_hits, total_tt_misses, total_tt_collisions);
         }
         
         println!("\nDetailed Results:");

@@ -1,5 +1,6 @@
 use crate::chromosome::Chromosome;
 use crate::evaluator::Evaluator;
+use crate::transposition_table::{TranspositionTable, NodeType};
 use chess::{Board, ChessMove, Color, MoveGen, EMPTY};
 use rand::Rng;
 
@@ -9,6 +10,9 @@ pub struct SearchStats {
     pub evaluations: u64,
     pub cutoffs: u64,
     pub terminal_nodes: u64,
+    pub tt_hits: u64,
+    pub tt_misses: u64,
+    pub tt_collisions: u64,
 }
 
 impl SearchStats {
@@ -18,6 +22,9 @@ impl SearchStats {
             evaluations: 0,
             cutoffs: 0,
             terminal_nodes: 0,
+            tt_hits: 0,
+            tt_misses: 0,
+            tt_collisions: 0,
         }
     }
 }
@@ -31,17 +38,29 @@ pub trait AlgorithmTraits {
 
 pub struct AlphaBetaAlgorithm {
     pub stats: SearchStats,
+    pub transposition_table: TranspositionTable,
 }
 
 impl AlphaBetaAlgorithm {
     pub fn new() -> Self {
         Self {
             stats: SearchStats::new(),
+            transposition_table: TranspositionTable::default(),
         }
     }
     
     pub fn reset_stats(&mut self) {
         self.stats = SearchStats::new();
+        // Start new search in transposition table
+        self.transposition_table.new_search();
+    }
+    
+    pub fn update_stats_from_tt(&mut self) {
+        // Update TT stats from transposition table
+        let (_, _, hits, misses, collisions) = self.transposition_table.stats();
+        self.stats.tt_hits = hits;
+        self.stats.tt_misses = misses;
+        self.stats.tt_collisions = collisions;
     }
 }
 
@@ -123,6 +142,7 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
             None
         };
 
+        self.update_stats_from_tt();
         (selected_move, self.stats.clone())
     }
     
@@ -149,6 +169,7 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
             None
         };
 
+        self.update_stats_from_tt();
         (selected_move, self.stats.clone())
     }
 }
@@ -182,6 +203,33 @@ impl AlphaBetaAlgorithm {
     pub fn alpha_beta_max(&mut self, board: Board, alpha_before: i32, beta: i32, depth_left_before: i32, chromosome: Option<&Chromosome>) -> i32 {
         self.stats.nodes_searched += 1;
         
+        // Only use TT for deeper searches (depth >= 2) to avoid overhead
+        let mut tt_move = None;
+        let board_hash = if depth_left_before >= 2 {
+            let hash = self.transposition_table.hash_position(&board);
+            if let Some(tt_entry) = self.transposition_table.probe(hash) {
+                if tt_entry.depth >= depth_left_before {
+                    match tt_entry.node_type {
+                        NodeType::Exact => return tt_entry.score,
+                        NodeType::LowerBound => {
+                            if tt_entry.score >= beta {
+                                return tt_entry.score;
+                            }
+                        }
+                        NodeType::UpperBound => {
+                            if tt_entry.score <= alpha_before {
+                                return tt_entry.score;
+                            }
+                        }
+                    }
+                }
+                tt_move = tt_entry.best_move;
+            }
+            hash
+        } else {
+            0 // Don't compute hash for shallow searches
+        };
+        
         // Check for game end conditions
         if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
             self.stats.terminal_nodes += 1;
@@ -198,7 +246,17 @@ impl AlphaBetaAlgorithm {
         }
 
         let mut alpha = alpha_before;
-        let moves = self.get_ordered_moves(&board);
+        let original_alpha = alpha_before;
+        let mut moves = self.get_ordered_moves(&board);
+        
+        // Order TT move first if available
+        if let Some(tt_mv) = tt_move {
+            if let Some(pos) = moves.iter().position(|&mv| mv == tt_mv) {
+                moves.swap(0, pos);
+            }
+        }
+        
+        let mut best_move = None;
 
         for mov in moves {
             let new_board = board.make_move_new(mov);
@@ -206,11 +264,26 @@ impl AlphaBetaAlgorithm {
 
             if score >= beta {
                 self.stats.cutoffs += 1;
+                // Store beta cutoff in TT (only for deeper searches)
+                if depth_left_before >= 2 {
+                    self.transposition_table.store(board_hash, depth_left_before, NodeType::LowerBound, beta, Some(mov));
+                }
                 return beta; // Beta cutoff
             }
             if score > alpha {
                 alpha = score;
+                best_move = Some(mov);
             }
+        }
+        
+        // Store result in transposition table (only for deeper searches)
+        if depth_left_before >= 2 {
+            let node_type = if alpha <= original_alpha {
+                NodeType::UpperBound // All moves failed low
+            } else {
+                NodeType::Exact // PV node
+            };
+            self.transposition_table.store(board_hash, depth_left_before, node_type, alpha, best_move);
         }
 
         alpha
@@ -218,6 +291,33 @@ impl AlphaBetaAlgorithm {
 
     pub fn alpha_beta_min(&mut self, board: Board, alpha: i32, beta_before: i32, depth_left_before: i32, chromosome: Option<&Chromosome>) -> i32 {
         self.stats.nodes_searched += 1;
+        
+        // Only use TT for deeper searches (depth >= 2) to avoid overhead
+        let mut tt_move = None;
+        let board_hash = if depth_left_before >= 2 {
+            let hash = self.transposition_table.hash_position(&board);
+            if let Some(tt_entry) = self.transposition_table.probe(hash) {
+                if tt_entry.depth >= depth_left_before {
+                    match tt_entry.node_type {
+                        NodeType::Exact => return tt_entry.score,
+                        NodeType::LowerBound => {
+                            if tt_entry.score >= beta_before {
+                                return tt_entry.score;
+                            }
+                        }
+                        NodeType::UpperBound => {
+                            if tt_entry.score <= alpha {
+                                return tt_entry.score;
+                            }
+                        }
+                    }
+                }
+                tt_move = tt_entry.best_move;
+            }
+            hash
+        } else {
+            0 // Don't compute hash for shallow searches
+        };
         
         // Check for game end conditions
         if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
@@ -235,7 +335,17 @@ impl AlphaBetaAlgorithm {
         }
 
         let mut beta = beta_before;
-        let moves = self.get_ordered_moves(&board);
+        let original_beta = beta_before;
+        let mut moves = self.get_ordered_moves(&board);
+        
+        // Order TT move first if available
+        if let Some(tt_mv) = tt_move {
+            if let Some(pos) = moves.iter().position(|&mv| mv == tt_mv) {
+                moves.swap(0, pos);
+            }
+        }
+        
+        let mut best_move = None;
 
         for mov in moves {
             let new_board = board.make_move_new(mov);
@@ -243,11 +353,26 @@ impl AlphaBetaAlgorithm {
 
             if score <= alpha {
                 self.stats.cutoffs += 1;
+                // Store alpha cutoff in TT (only for deeper searches)
+                if depth_left_before >= 2 {
+                    self.transposition_table.store(board_hash, depth_left_before, NodeType::UpperBound, alpha, Some(mov));
+                }
                 return alpha; // Alpha cutoff
             }
             if score < beta {
                 beta = score;
+                best_move = Some(mov);
             }
+        }
+        
+        // Store result in transposition table (only for deeper searches)
+        if depth_left_before >= 2 {
+            let node_type = if beta >= original_beta {
+                NodeType::LowerBound // All moves failed high
+            } else {
+                NodeType::Exact // PV node
+            };
+            self.transposition_table.store(board_hash, depth_left_before, node_type, beta, best_move);
         }
 
         beta

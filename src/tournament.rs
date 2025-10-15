@@ -93,7 +93,9 @@ fn randomize_opponents(players: Vec<Chromosome>) -> Vec<(Chromosome, Chromosome)
 
 fn play_chess_match(player1: Chromosome, player2: Chromosome, depth: i32) -> i32 {
     let mut board = Board::default();
-    let mut alg = AlphaBetaAlgorithm::new();
+    // Create separate algorithm instances to prevent TT contamination between chromosomes
+    let mut alg1 = AlphaBetaAlgorithm::new(); // For player1 (white)
+    let mut alg2 = AlphaBetaAlgorithm::new(); // For player2 (black)
     let mut move_count = 0;
     let max_moves = 100; // Prevent infinite games
 
@@ -127,10 +129,10 @@ fn play_chess_match(player1: Chromosome, player2: Chromosome, depth: i32) -> i32
             }
         }
 
-        // Get move from appropriate player
+        // Get move from appropriate player using their dedicated algorithm instance
         let chess_move = match board.side_to_move() {
-            chess::Color::White => alg.get_best_move_with_chromosome(board, depth, &player1),
-            chess::Color::Black => alg.get_best_move_with_chromosome(board, depth, &player2),
+            chess::Color::White => alg1.get_best_move_with_chromosome(board, depth, &player1),
+            chess::Color::Black => alg2.get_best_move_with_chromosome(board, depth, &player2),
         };
 
         match chess_move {
