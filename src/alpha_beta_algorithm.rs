@@ -1,7 +1,7 @@
 use crate::chromosome::Chromosome;
 use crate::evaluator::Evaluator;
 use chess::{Board, ChessMove, Color, MoveGen, EMPTY};
-use rand::Rng;
+use rand::RngExt;
 
 #[derive(Debug, Clone)]
 pub struct SearchStats {

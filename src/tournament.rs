@@ -2,7 +2,7 @@ use crate::alpha_beta_algorithm::{AlgorithmTraits, AlphaBetaAlgorithm};
 use crate::chromosome::{init_new_chromosomes, Chromosome};
 use crate::repository::ChromosomeRepository;
 use chess::{Board, BoardStatus};
-use rand::Rng;
+use rand::RngExt;
 use std::thread;
 
 #[derive(Debug, Clone)]
