@@ -172,23 +172,22 @@ fn run_single_game(args: &SingleArgs) {
 
 fn run_benchmark(args: &BenchmarkArgs) {
     let mut runner = BenchmarkRunner::new();
-    
+
     if let Some(fen) = &args.fen {
         // Benchmark a specific position
         println!("Benchmarking custom position at depth {}", args.depth);
-        
+
         for i in 1..=args.iterations {
             if args.iterations > 1 {
                 println!("Iteration {}/{}", i, args.iterations);
             }
-            
+
             match runner.benchmark_position("Custom Position", fen, args.depth) {
                 Ok(result) => {
-                    println!("{}: {} nodes/sec ({} nodes in {} ms)", 
-                            result.position_name, 
-                            result.nodes_per_second as u64, 
-                            result.nodes_searched, 
-                            result.time_ms);
+                    println!(
+                        "{}: {} nodes/sec ({} nodes in {} ms)",
+                        result.position_name, result.nodes_per_second as u64, result.nodes_searched, result.time_ms
+                    );
                 }
                 Err(e) => {
                     eprintln!("Error benchmarking position: {}", e);
@@ -202,12 +201,12 @@ fn run_benchmark(args: &BenchmarkArgs) {
             if args.iterations > 1 {
                 println!("\nBenchmark iteration {}/{}", i, args.iterations);
             }
-            
+
             if let Err(e) = runner.run_standard_benchmark(args.depth) {
                 eprintln!("Error running benchmark: {}", e);
                 std::process::exit(1);
             }
-            
+
             if i < args.iterations {
                 runner.results.clear(); // Clear results for next iteration
             }

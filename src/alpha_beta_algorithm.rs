@@ -47,11 +47,9 @@ impl Default for AlphaBetaAlgorithm {
 
 impl AlphaBetaAlgorithm {
     pub fn new() -> Self {
-        Self {
-            stats: SearchStats::new(),
-        }
+        Self { stats: SearchStats::new() }
     }
-    
+
     pub fn reset_stats(&mut self) {
         self.stats = SearchStats::new();
     }
@@ -111,7 +109,7 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
         // println!("value for selected move for {0}: {1}", color, selected_move.1);
         Some(selected_move.0)
     }
-    
+
     fn get_best_move_with_stats(&mut self, board: Board, depth: i32) -> (Option<ChessMove>, SearchStats) {
         self.reset_stats();
         let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
@@ -127,13 +125,13 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
 
         let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move());
         let selected_move = selected_index.map(|idx| match board.side_to_move() {
-                Color::White => best_moves[best_moves.len() - 1 - idx].0,
-                Color::Black => best_moves[idx].0,
-            });
+            Color::White => best_moves[best_moves.len() - 1 - idx].0,
+            Color::Black => best_moves[idx].0,
+        });
 
         (selected_move, self.stats.clone())
     }
-    
+
     fn get_best_move_with_chromosome_and_stats(&mut self, board: Board, depth: i32, chromosome: &Chromosome) -> (Option<ChessMove>, SearchStats) {
         self.reset_stats();
         let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
@@ -149,9 +147,9 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
 
         let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move());
         let selected_move = selected_index.map(|idx| match board.side_to_move() {
-                Color::White => best_moves[best_moves.len() - 1 - idx].0,
-                Color::Black => best_moves[idx].0,
-            });
+            Color::White => best_moves[best_moves.len() - 1 - idx].0,
+            Color::Black => best_moves[idx].0,
+        });
 
         (selected_move, self.stats.clone())
     }
@@ -185,7 +183,7 @@ impl AlphaBetaAlgorithm {
 
     pub fn alpha_beta_max(&mut self, board: Board, alpha_before: i32, beta: i32, depth_left_before: i32, chromosome: Option<&Chromosome>) -> i32 {
         self.stats.nodes_searched += 1;
-        
+
         // Check for game end conditions
         if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
             self.stats.terminal_nodes += 1;
@@ -222,7 +220,7 @@ impl AlphaBetaAlgorithm {
 
     pub fn alpha_beta_min(&mut self, board: Board, alpha: i32, beta_before: i32, depth_left_before: i32, chromosome: Option<&Chromosome>) -> i32 {
         self.stats.nodes_searched += 1;
-        
+
         // Check for game end conditions
         if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
             self.stats.terminal_nodes += 1;
