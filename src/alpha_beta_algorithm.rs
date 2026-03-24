@@ -11,6 +11,12 @@ pub struct SearchStats {
     pub terminal_nodes: u64,
 }
 
+impl Default for SearchStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SearchStats {
     pub fn new() -> Self {
         Self {
@@ -31,6 +37,12 @@ pub trait AlgorithmTraits {
 
 pub struct AlphaBetaAlgorithm {
     pub stats: SearchStats,
+}
+
+impl Default for AlphaBetaAlgorithm {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AlphaBetaAlgorithm {
@@ -114,14 +126,10 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
         best_moves.sort_by_key(|k| k.1);
 
         let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move());
-        let selected_move = if let Some(idx) = selected_index {
-            Some(match board.side_to_move() {
+        let selected_move = selected_index.map(|idx| match board.side_to_move() {
                 Color::White => best_moves[best_moves.len() - 1 - idx].0,
                 Color::Black => best_moves[idx].0,
-            })
-        } else {
-            None
-        };
+            });
 
         (selected_move, self.stats.clone())
     }
@@ -140,14 +148,10 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
         best_moves.sort_by_key(|k| k.1);
 
         let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move());
-        let selected_move = if let Some(idx) = selected_index {
-            Some(match board.side_to_move() {
+        let selected_move = selected_index.map(|idx| match board.side_to_move() {
                 Color::White => best_moves[best_moves.len() - 1 - idx].0,
                 Color::Black => best_moves[idx].0,
-            })
-        } else {
-            None
-        };
+            });
 
         (selected_move, self.stats.clone())
     }

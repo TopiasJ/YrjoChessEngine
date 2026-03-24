@@ -60,6 +60,12 @@ pub struct BenchmarkRunner {
     pub results: Vec<BenchmarkResult>,
 }
 
+impl Default for BenchmarkRunner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BenchmarkRunner {
     pub fn new() -> Self {
         Self {
@@ -188,7 +194,7 @@ impl BenchmarkRunner {
         
         let mut comparisons = Vec::new();
         
-        for (_i, (result1, result2)) in self.results.iter().zip(other.results.iter()).enumerate() {
+        for (result1, result2) in self.results.iter().zip(other.results.iter()) {
             if result1.position_name != result2.position_name || result1.depth != result2.depth {
                 return None;
             }

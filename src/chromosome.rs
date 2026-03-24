@@ -134,7 +134,7 @@ pub fn get_project_version() -> String {
 
 /// Gets the current git commit hash (short form)
 fn get_git_hash() -> Option<String> {
-    Command::new("git").args(&["rev-parse", "--short", "HEAD"]).output().ok().and_then(|output| {
+    Command::new("git").args(["rev-parse", "--short", "HEAD"]).output().ok().and_then(|output| {
         if output.status.success() {
             Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
         } else {
@@ -161,6 +161,12 @@ pub struct TournamentRecord {
 pub struct TournamentHistory {
     pub format_version: String,
     pub tournaments: Vec<TournamentRecord>,
+}
+
+impl Default for TournamentHistory {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TournamentHistory {

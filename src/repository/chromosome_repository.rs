@@ -22,6 +22,12 @@ pub struct MemoryChromosomeRepository {
     chromosomes: Vec<Chromosome>,
 }
 
+impl Default for MemoryChromosomeRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryChromosomeRepository {
     pub fn new() -> Self {
         Self { chromosomes: Vec::new() }
