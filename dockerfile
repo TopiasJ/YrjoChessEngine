@@ -1,10 +1,8 @@
-FROM rust as builder
+FROM rust:1.83-slim-bookworm AS builder
 WORKDIR /src
 COPY . .
-
 RUN cargo install --profile release-lto --path .
 
-FROM debian:buster-slim
-RUN apt-get update && apt-get install -y && rm -rf /var/lib/apt/lists/*
+FROM debian:bookworm-slim
 COPY --from=builder /usr/local/cargo/bin/yrjo_chess_engine /usr/local/bin/yrjo_chess_engine
-CMD [ "yrjo_chess_engine" ]
+ENTRYPOINT ["yrjo_chess_engine"]
