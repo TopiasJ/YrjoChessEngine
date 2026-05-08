@@ -1,5 +1,6 @@
 use crate::chromosome::Chromosome;
 use crate::evaluator::Evaluator;
+use crate::transposition_table::{NodeType, TranspositionTable};
 use chess::{Board, ChessMove, Color, MoveGen, EMPTY};
 use rand::RngExt;
 
@@ -9,6 +10,9 @@ pub struct SearchStats {
     pub evaluations: u64,
     pub cutoffs: u64,
     pub terminal_nodes: u64,
+    pub tt_hits: u64,
+    pub tt_misses: u64,
+    pub tt_collisions: u64,
 }
 
 impl Default for SearchStats {
@@ -24,6 +28,9 @@ impl SearchStats {
             evaluations: 0,
             cutoffs: 0,
             terminal_nodes: 0,
+            tt_hits: 0,
+            tt_misses: 0,
+            tt_collisions: 0,
         }
     }
 }
@@ -37,6 +44,7 @@ pub trait AlgorithmTraits {
 
 pub struct AlphaBetaAlgorithm {
     pub stats: SearchStats,
+    pub transposition_table: TranspositionTable,
 }
 
 impl Default for AlphaBetaAlgorithm {
@@ -47,13 +55,35 @@ impl Default for AlphaBetaAlgorithm {
 
 impl AlphaBetaAlgorithm {
     pub fn new() -> Self {
-        Self { stats: SearchStats::new() }
+        Self {
+            stats: SearchStats::new(),
+            transposition_table: TranspositionTable::default(),
+        }
     }
 
     pub fn reset_stats(&mut self) {
         self.stats = SearchStats::new();
+        self.transposition_table.new_search();
+    }
+
+    fn update_stats_from_tt(&mut self) {
+        let tt = self.transposition_table.stats();
+        self.stats.tt_hits = tt.hits;
+        self.stats.tt_misses = tt.misses;
+        self.stats.tt_collisions = tt.collisions;
     }
 }
+
+/// Outcome of a transposition-table probe at the start of a search node.
+enum ProbeResult {
+    /// The cached entry already determines the score; the caller should return it directly.
+    Cutoff(i32),
+    /// No usable cached score; continue searching with the given hash and (optional) hint move.
+    Continue { hash: u64, tt_move: Option<ChessMove> },
+}
+
+/// Below this depth the TT lookup/store cost outweighs the savings, so we skip it.
+const TT_MIN_DEPTH: i32 = 2;
 
 impl AlgorithmTraits for AlphaBetaAlgorithm {
     fn get_best_move(&mut self, board: Board, depth: i32) -> Option<ChessMove> {
@@ -129,6 +159,7 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
             Color::Black => best_moves[idx].0,
         });
 
+        self.update_stats_from_tt();
         (selected_move, self.stats.clone())
     }
 
@@ -151,7 +182,16 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
             Color::Black => best_moves[idx].0,
         });
 
+        self.update_stats_from_tt();
         (selected_move, self.stats.clone())
+    }
+}
+
+/// Move the TT hint move to the front of the move list so it's searched first.
+fn order_tt_move_first(moves: &mut [ChessMove], tt_move: Option<ChessMove>) {
+    let Some(tt_mv) = tt_move else { return };
+    if let Some(pos) = moves.iter().position(|&mv| mv == tt_mv) {
+        moves.swap(0, pos);
     }
 }
 
@@ -184,13 +224,16 @@ impl AlphaBetaAlgorithm {
     pub fn alpha_beta_max(&mut self, board: Board, alpha_before: i32, beta: i32, depth_left_before: i32, chromosome: Option<&Chromosome>) -> i32 {
         self.stats.nodes_searched += 1;
 
-        // Check for game end conditions
+        let (board_hash, tt_move) = match self.probe_tt(&board, depth_left_before, alpha_before, beta) {
+            ProbeResult::Cutoff(score) => return score,
+            ProbeResult::Continue { hash, tt_move } => (hash, tt_move),
+        };
+
         if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
             self.stats.terminal_nodes += 1;
             return terminal_score;
         }
 
-        // Leaf node evaluation
         if depth_left_before == 0 {
             self.stats.evaluations += 1;
             return match chromosome {
@@ -200,7 +243,9 @@ impl AlphaBetaAlgorithm {
         }
 
         let mut alpha = alpha_before;
-        let moves = self.get_ordered_moves(&board);
+        let mut moves = self.get_ordered_moves(&board);
+        order_tt_move_first(&mut moves, tt_move);
+        let mut best_move = None;
 
         for mov in moves {
             let new_board = board.make_move_new(mov);
@@ -208,12 +253,17 @@ impl AlphaBetaAlgorithm {
 
             if score >= beta {
                 self.stats.cutoffs += 1;
-                return beta; // Beta cutoff
+                self.store_tt(board_hash, depth_left_before, NodeType::LowerBound, beta, Some(mov));
+                return beta;
             }
             if score > alpha {
                 alpha = score;
+                best_move = Some(mov);
             }
         }
+
+        let node_type = if alpha <= alpha_before { NodeType::UpperBound } else { NodeType::Exact };
+        self.store_tt(board_hash, depth_left_before, node_type, alpha, best_move);
 
         alpha
     }
@@ -221,13 +271,16 @@ impl AlphaBetaAlgorithm {
     pub fn alpha_beta_min(&mut self, board: Board, alpha: i32, beta_before: i32, depth_left_before: i32, chromosome: Option<&Chromosome>) -> i32 {
         self.stats.nodes_searched += 1;
 
-        // Check for game end conditions
+        let (board_hash, tt_move) = match self.probe_tt(&board, depth_left_before, alpha, beta_before) {
+            ProbeResult::Cutoff(score) => return score,
+            ProbeResult::Continue { hash, tt_move } => (hash, tt_move),
+        };
+
         if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
             self.stats.terminal_nodes += 1;
             return terminal_score;
         }
 
-        // Leaf node evaluation
         if depth_left_before == 0 {
             self.stats.evaluations += 1;
             return match chromosome {
@@ -237,7 +290,9 @@ impl AlphaBetaAlgorithm {
         }
 
         let mut beta = beta_before;
-        let moves = self.get_ordered_moves(&board);
+        let mut moves = self.get_ordered_moves(&board);
+        order_tt_move_first(&mut moves, tt_move);
+        let mut best_move = None;
 
         for mov in moves {
             let new_board = board.make_move_new(mov);
@@ -245,14 +300,46 @@ impl AlphaBetaAlgorithm {
 
             if score <= alpha {
                 self.stats.cutoffs += 1;
-                return alpha; // Alpha cutoff
+                self.store_tt(board_hash, depth_left_before, NodeType::UpperBound, alpha, Some(mov));
+                return alpha;
             }
             if score < beta {
                 beta = score;
+                best_move = Some(mov);
             }
         }
 
+        let node_type = if beta >= beta_before { NodeType::LowerBound } else { NodeType::Exact };
+        self.store_tt(board_hash, depth_left_before, node_type, beta, best_move);
+
         beta
+    }
+
+    fn probe_tt(&mut self, board: &Board, depth: i32, alpha: i32, beta: i32) -> ProbeResult {
+        if depth < TT_MIN_DEPTH {
+            return ProbeResult::Continue { hash: 0, tt_move: None };
+        }
+        let hash = self.transposition_table.hash_position(board);
+        let (entry_depth, node_type, score, best_move) = match self.transposition_table.probe(hash) {
+            Some(entry) => (entry.depth, entry.node_type, entry.score, entry.best_move),
+            None => return ProbeResult::Continue { hash, tt_move: None },
+        };
+        if entry_depth >= depth {
+            match node_type {
+                NodeType::Exact => return ProbeResult::Cutoff(score),
+                NodeType::LowerBound if score >= beta => return ProbeResult::Cutoff(score),
+                NodeType::UpperBound if score <= alpha => return ProbeResult::Cutoff(score),
+                _ => {}
+            }
+        }
+        ProbeResult::Continue { hash, tt_move: best_move }
+    }
+
+    fn store_tt(&mut self, hash: u64, depth: i32, node_type: NodeType, score: i32, best_move: Option<ChessMove>) {
+        if depth < TT_MIN_DEPTH {
+            return;
+        }
+        self.transposition_table.store(hash, depth, node_type, score, best_move);
     }
 
     /// Check if the position is terminal (game over) and return the appropriate score

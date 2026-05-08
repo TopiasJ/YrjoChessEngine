@@ -5,6 +5,7 @@ mod evaluator;
 mod repository;
 mod tests;
 mod tournament;
+mod transposition_table;
 mod visualizer;
 
 use crate::benchmark::BenchmarkRunner;
