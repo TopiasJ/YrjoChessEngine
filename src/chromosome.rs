@@ -1,4 +1,4 @@
-use rand::{RngExt};
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 

@@ -17,8 +17,6 @@ struct MatchTask {
 struct MatchResult {
     winner: Chromosome,
     match_id: usize,
-    player1_wins: i32,
-    player2_wins: i32,
 }
 
 pub fn tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, depth: i32, tournament_count: u32, old_chromosomes_repository: &mut REPO) {
@@ -258,8 +256,6 @@ fn run_match_task(task: MatchTask) -> MatchResult {
             return MatchResult {
                 winner: task.player1,
                 match_id: task.match_id,
-                player1_wins,
-                player2_wins,
             };
         }
         if player2_wins == 2 {
@@ -267,8 +263,6 @@ fn run_match_task(task: MatchTask) -> MatchResult {
             return MatchResult {
                 winner: task.player2,
                 match_id: task.match_id,
-                player1_wins,
-                player2_wins,
             };
         }
     }
@@ -292,8 +286,6 @@ fn run_match_task(task: MatchTask) -> MatchResult {
     MatchResult {
         winner,
         match_id: task.match_id,
-        player1_wins,
-        player2_wins,
     }
 }
 
