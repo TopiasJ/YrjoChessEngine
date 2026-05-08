@@ -35,6 +35,18 @@ pub enum Commands {
     Tournament(TournamentArgs),
     /// Run performance benchmarks
     Benchmark(BenchmarkArgs),
+    /// Compute the best move for a position and print one line of JSON
+    BestMove(BestMoveArgs),
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct BestMoveArgs {
+    /// Position in FEN notation
+    #[arg(short = 'f', long)]
+    pub fen: String,
+    /// Calculation depth (half-moves)
+    #[arg(short = 'd', long, default_value = "5")]
+    pub depth: i32,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -215,6 +227,40 @@ fn run_benchmark(args: &BenchmarkArgs) {
     }
 }
 
+fn run_best_move(args: &BestMoveArgs) {
+    if args.depth < 1 || args.depth > 10 {
+        eprintln!("Error: Depth must be between 1 and 10");
+        std::process::exit(1);
+    }
+    let board = match Board::from_str(&args.fen) {
+        Ok(b) => b,
+        Err(_) => {
+            eprintln!("Error: Invalid FEN position");
+            std::process::exit(1);
+        }
+    };
+    let start = std::time::Instant::now();
+    let mut alg = AlphaBetaAlgorithm::new();
+    let (mv_opt, stats) = alg.get_best_move_with_stats(board, args.depth);
+    let elapsed_ms = start.elapsed().as_millis() as i64;
+    let mv = match mv_opt {
+        Some(m) => m,
+        None => {
+            eprintln!("Error: No legal moves");
+            std::process::exit(1);
+        }
+    };
+    let evaluation = Evaluator::evaluate(board.make_move_new(mv));
+    let out = serde_json::json!({
+        "best_move": mv.to_string(),
+        "evaluation": evaluation,
+        "depth": args.depth,
+        "nodes_searched": stats.nodes_searched as i64,
+        "time_ms": elapsed_ms,
+    });
+    println!("{out}");
+}
+
 fn main() {
     let cli = Cli::parse();
     match &cli.command {
@@ -240,5 +286,6 @@ fn main() {
             }
         }
         Commands::Benchmark(args) => run_benchmark(args),
+        Commands::BestMove(args) => run_best_move(args),
     }
 }
