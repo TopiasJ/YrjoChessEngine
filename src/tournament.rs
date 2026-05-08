@@ -285,10 +285,7 @@ fn run_match_task(task: MatchTask) -> MatchResult {
         task.player2
     };
 
-    MatchResult {
-        winner,
-        match_id: task.match_id,
-    }
+    MatchResult { winner, match_id: task.match_id }
 }
 
 fn run_matches_parallel(matches: Vec<(Chromosome, Chromosome)>, depth: i32) -> Vec<Chromosome> {
