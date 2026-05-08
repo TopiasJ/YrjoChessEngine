@@ -4,6 +4,11 @@ use crate::repository::ChromosomeRepository;
 use chess::{Board, BoardStatus};
 use rand::RngExt;
 use std::thread;
+use std::time::Instant;
+
+fn now_hms() -> String {
+    chrono::Local::now().format("%H:%M:%S").to_string()
+}
 
 #[derive(Debug, Clone)]
 struct MatchTask {
@@ -24,14 +29,14 @@ pub fn tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i32, dept
         println!("Running infinite tournaments (press Ctrl+C to stop)...");
         let mut current_tournament = 1;
         loop {
-            println!("\n🏁 === STARTING TOURNAMENT #{current_tournament} ===");
+            println!("\n🏁 === STARTING TOURNAMENT #{current_tournament} === [{}]", now_hms());
             run_single_tournament(wanted_chromosome_count, depth, old_chromosomes_repository);
             current_tournament += 1;
         }
     } else {
         println!("Running {tournament_count} tournaments...");
         for i in 1..=tournament_count {
-            println!("\n🏁 === STARTING TOURNAMENT #{i}/{tournament_count} ===");
+            println!("\n🏁 === STARTING TOURNAMENT #{i}/{tournament_count} === [{}]", now_hms());
             run_single_tournament(wanted_chromosome_count, depth, old_chromosomes_repository);
         }
         println!("\n🏆 All {tournament_count} tournaments completed!");
@@ -57,11 +62,14 @@ fn run_single_tournament<REPO: ChromosomeRepository>(wanted_chromosome_count: i3
 
     // Keep playing rounds until we have fewer than 2 players or reach max 2 rounds
     while current_round_players.len() >= 2 && round_number <= 2 {
-        println!("\n=== ROUND {round_number} ===");
+        let round_started_at = Instant::now();
+        println!("\n=== ROUND {round_number} === [{}]", now_hms());
         println!("Players in this round: {}", current_round_players.len());
 
         let matches = randomize_opponents(current_round_players);
         let winners = run_matches_parallel(matches, depth);
+
+        println!("Round {round_number} finished in {:.1}s", round_started_at.elapsed().as_secs_f64());
 
         current_round_players = winners;
         round_number += 1;
