@@ -15,17 +15,18 @@ impl Evaluator {
 
     #[inline]
     fn get_board_value_bitboard(board: Board, chromosome: Option<&Chromosome>) -> i32 {
+        const PIECES: [Piece; 6] = [Piece::Pawn, Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King];
+
         let bit_board_white = *board.color_combined(Color::White);
         let bit_board_black = *board.color_combined(Color::Black);
-        //println!("bitboard {}", bit_board_white);
         let mut current_score = 0;
-        for square in bit_board_white {
-            let pie = board.piece_on(square).unwrap();
-            current_score += Self::get_piece_value(pie, chromosome);
-        }
-        for square in bit_board_black {
-            let pie = board.piece_on(square).unwrap();
-            current_score -= Self::get_piece_value(pie, chromosome);
+        // Material only, so counting each piece bitboard with popcount is enough —
+        // no need to look up the piece on every occupied square.
+        for piece in PIECES {
+            let piece_bb = *board.pieces(piece);
+            let value = Self::get_piece_value(piece, chromosome);
+            let count_difference = (piece_bb & bit_board_white).popcnt() as i32 - (piece_bb & bit_board_black).popcnt() as i32;
+            current_score += count_difference * value;
         }
         current_score
     }
@@ -49,5 +50,39 @@ impl Evaluator {
                 Piece::King => 10000,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn starting_position_is_balanced() {
+        assert_eq!(Evaluator::evaluate(Board::default()), 0);
+    }
+
+    #[test]
+    fn missing_knight_costs_its_default_value() {
+        // White is missing the b1 knight
+        let board = Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/R1BQKBNR w KQkq - 0 1").unwrap();
+        assert_eq!(Evaluator::evaluate(board), -300);
+    }
+
+    #[test]
+    fn chromosome_values_drive_the_score() {
+        let chromosome = Chromosome {
+            pawn_value: 1,
+            knight_value: 3,
+            bishop_value: 3,
+            rook_value: 5,
+            queen_value: 9,
+            king_value: 0,
+        };
+        // Black is missing the d8 queen
+        let board = Board::from_str("rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+        assert_eq!(Evaluator::evaluate_with_chromosome(board, &chromosome), 9);
+        assert_eq!(Evaluator::evaluate(board), 900);
     }
 }
