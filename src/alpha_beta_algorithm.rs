@@ -95,9 +95,13 @@ const MATE_SCORE_THRESHOLD: i32 = 9000;
 /// in the same game).
 fn to_tt_score(score: i32, depth: i32) -> i32 {
     if score > MATE_SCORE_THRESHOLD {
-        score - depth
+        let rebased = score - depth;
+        debug_assert!(rebased > MATE_SCORE_THRESHOLD, "search depth too large: re-based mate score no longer recognizable as a mate");
+        rebased
     } else if score < -MATE_SCORE_THRESHOLD {
-        score + depth
+        let rebased = score + depth;
+        debug_assert!(rebased < -MATE_SCORE_THRESHOLD, "search depth too large: re-based mate score no longer recognizable as a mate");
+        rebased
     } else {
         score
     }
@@ -464,5 +468,30 @@ mod root_search_tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tt_score_tests {
+    use super::*;
+
+    /// A mate 2 plies below a node searched with 5 plies remaining
+    /// (raw score 9999 + 3) must read back as the same mate distance when the
+    /// position is probed by a search with 7 plies remaining.
+    #[test]
+    fn mate_scores_round_trip_across_depths() {
+        let stored = to_tt_score(9999 + 3, 5);
+        assert_eq!(from_tt_score(stored, 7), 9999 + 5);
+
+        let stored = to_tt_score(-9999 - 3, 5);
+        assert_eq!(from_tt_score(stored, 7), -9999 - 5);
+    }
+
+    #[test]
+    fn non_mate_scores_are_untouched() {
+        assert_eq!(to_tt_score(150, 7), 150);
+        assert_eq!(to_tt_score(-150, 7), -150);
+        assert_eq!(from_tt_score(150, 7), 150);
+        assert_eq!(from_tt_score(-150, 7), -150);
     }
 }
