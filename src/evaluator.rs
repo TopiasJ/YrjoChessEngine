@@ -15,17 +15,18 @@ impl Evaluator {
 
     #[inline]
     fn get_board_value_bitboard(board: Board, chromosome: Option<&Chromosome>) -> i32 {
+        const PIECES: [Piece; 6] = [Piece::Pawn, Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King];
+
         let bit_board_white = *board.color_combined(Color::White);
         let bit_board_black = *board.color_combined(Color::Black);
-        //println!("bitboard {}", bit_board_white);
         let mut current_score = 0;
-        for square in bit_board_white {
-            let pie = board.piece_on(square).unwrap();
-            current_score += Self::get_piece_value(pie, chromosome);
-        }
-        for square in bit_board_black {
-            let pie = board.piece_on(square).unwrap();
-            current_score -= Self::get_piece_value(pie, chromosome);
+        // Material only, so counting each piece bitboard with popcount is enough —
+        // no need to look up the piece on every occupied square.
+        for piece in PIECES {
+            let piece_bb = *board.pieces(piece);
+            let value = Self::get_piece_value(piece, chromosome);
+            current_score += (piece_bb & bit_board_white).popcnt() as i32 * value;
+            current_score -= (piece_bb & bit_board_black).popcnt() as i32 * value;
         }
         current_score
     }
