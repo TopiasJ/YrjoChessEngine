@@ -85,6 +85,36 @@ enum ProbeResult {
 /// Below this depth the TT lookup/store cost outweighs the savings, so we skip it.
 const TT_MIN_DEPTH: i32 = 2;
 
+/// Scores beyond this magnitude are mate scores (see `check_terminal_position`).
+const MATE_SCORE_THRESHOLD: i32 = 9000;
+
+/// Mate scores encode distance to mate via the storing node's remaining depth,
+/// so they are only valid for the search that produced them. Re-base them to be
+/// node-relative before storing, so an entry stays correct when the same
+/// position is probed at a different remaining depth (e.g. by a later search
+/// in the same game).
+fn to_tt_score(score: i32, depth: i32) -> i32 {
+    if score > MATE_SCORE_THRESHOLD {
+        score - depth
+    } else if score < -MATE_SCORE_THRESHOLD {
+        score + depth
+    } else {
+        score
+    }
+}
+
+/// Inverse of `to_tt_score`: re-base a stored node-relative mate score to the
+/// probing node's remaining depth.
+fn from_tt_score(score: i32, depth: i32) -> i32 {
+    if score > MATE_SCORE_THRESHOLD {
+        score + depth
+    } else if score < -MATE_SCORE_THRESHOLD {
+        score - depth
+    } else {
+        score
+    }
+}
+
 impl AlgorithmTraits for AlphaBetaAlgorithm {
     fn get_best_move(&mut self, board: Board, depth: i32) -> Option<ChessMove> {
         let best_moves = self.search_root_moves(board, depth, None);
@@ -316,7 +346,7 @@ impl AlphaBetaAlgorithm {
         }
         let hash = self.transposition_table.hash_position(board);
         let (entry_depth, node_type, score, best_move) = match self.transposition_table.probe(hash) {
-            Some(entry) => (entry.depth, entry.node_type, entry.score, entry.best_move),
+            Some(entry) => (entry.depth, entry.node_type, from_tt_score(entry.score, depth), entry.best_move),
             None => return ProbeResult::Continue { hash, tt_move: None },
         };
         if entry_depth >= depth {
@@ -334,7 +364,7 @@ impl AlphaBetaAlgorithm {
         if depth < TT_MIN_DEPTH {
             return;
         }
-        self.transposition_table.store(hash, depth, node_type, score, best_move);
+        self.transposition_table.store(hash, depth, node_type, to_tt_score(score, depth), best_move);
     }
 
     /// Check if the position is terminal (game over) and return the appropriate score
