@@ -318,7 +318,9 @@ impl AlphaBetaAlgorithm {
         if depth < TT_MIN_DEPTH {
             return ProbeResult::Continue { hash: 0, tt_move: None };
         }
-        let hash = self.transposition_table.hash_position(board);
+        // The chess crate maintains this Zobrist hash incrementally on every
+        // make_move_new, so reading it is O(1).
+        let hash = board.get_hash();
         let (entry_depth, node_type, score, best_move) = match self.transposition_table.probe(hash) {
             Some(entry) => (entry.depth, entry.node_type, entry.score, entry.best_move),
             None => return ProbeResult::Continue { hash, tt_move: None },

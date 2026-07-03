@@ -1,76 +1,4 @@
-use chess::{Board, ChessMove, Color, Piece};
-use rand::{rngs::StdRng, RngExt, SeedableRng};
-
-const ZOBRIST_SEED: u64 = 12345;
-const PIECES: [Piece; 6] = [Piece::Pawn, Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen, Piece::King];
-
-#[derive(Debug)]
-struct ZobristKeys {
-    piece_square: [[u64; 64]; 12],
-    side_to_move: u64,
-    castling: [u64; 16],
-    en_passant: [u64; 8],
-}
-
-impl Default for ZobristKeys {
-    fn default() -> Self {
-        let mut rng = StdRng::seed_from_u64(ZOBRIST_SEED);
-        Self {
-            piece_square: std::array::from_fn(|_| std::array::from_fn(|_| rng.random())),
-            side_to_move: rng.random(),
-            castling: std::array::from_fn(|_| rng.random()),
-            en_passant: std::array::from_fn(|_| rng.random()),
-        }
-    }
-}
-
-impl ZobristKeys {
-    fn piece_index(piece: Piece, color: Color) -> usize {
-        let piece_idx = match piece {
-            Piece::Pawn => 0,
-            Piece::Knight => 1,
-            Piece::Bishop => 2,
-            Piece::Rook => 3,
-            Piece::Queen => 4,
-            Piece::King => 5,
-        };
-        match color {
-            Color::White => piece_idx,
-            Color::Black => piece_idx + 6,
-        }
-    }
-
-    #[inline]
-    fn hash_position(&self, board: &Board) -> u64 {
-        let mut hash = 0u64;
-
-        for color in [Color::White, Color::Black] {
-            let color_pieces = board.color_combined(color);
-            for piece in PIECES {
-                let piece_bb = board.pieces(piece) & color_pieces;
-                let idx = Self::piece_index(piece, color);
-                for square in piece_bb {
-                    hash ^= self.piece_square[idx][square.to_index()];
-                }
-            }
-        }
-
-        if board.side_to_move() == Color::Black {
-            hash ^= self.side_to_move;
-        }
-
-        let white = board.castle_rights(Color::White);
-        let black = board.castle_rights(Color::Black);
-        let castling_idx = (white.has_kingside() as usize) | ((white.has_queenside() as usize) << 1) | ((black.has_kingside() as usize) << 2) | ((black.has_queenside() as usize) << 3);
-        hash ^= self.castling[castling_idx];
-
-        if let Some(ep) = board.en_passant() {
-            hash ^= self.en_passant[ep.get_file().to_index()];
-        }
-
-        hash
-    }
-}
+use chess::ChessMove;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum NodeType {
@@ -99,7 +27,6 @@ pub struct TtStats {
 /// Fixed-size hash table caching position evaluations across the search.
 pub struct TranspositionTable {
     table: Vec<Option<TTEntry>>,
-    zobrist: ZobristKeys,
     current_age: u8,
     size_mask: usize,
     hits: u64,
@@ -118,17 +45,12 @@ impl TranspositionTable {
         let size = size.next_power_of_two();
         Self {
             table: vec![None; size],
-            zobrist: ZobristKeys::default(),
             current_age: 0,
             size_mask: size - 1,
             hits: 0,
             misses: 0,
             collisions: 0,
         }
-    }
-
-    pub fn hash_position(&self, board: &Board) -> u64 {
-        self.zobrist.hash_position(board)
     }
 
     #[inline]
