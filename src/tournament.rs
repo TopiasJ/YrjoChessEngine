@@ -3,6 +3,8 @@ use crate::chromosome::{init_new_chromosomes, Chromosome};
 use crate::repository::ChromosomeRepository;
 use chess::{Board, BoardStatus};
 use rand::RngExt;
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Instant;
 
@@ -97,11 +99,8 @@ fn randomize_opponents(players: Vec<Chromosome>) -> Vec<(Chromosome, Chromosome)
     matches
 }
 
-fn play_chess_match(player1: Chromosome, player2: Chromosome, depth: i32) -> i32 {
+fn play_chess_match(alg1: &mut AlphaBetaAlgorithm, alg2: &mut AlphaBetaAlgorithm, player1: &Chromosome, player2: &Chromosome, depth: i32) -> i32 {
     let mut board = Board::default();
-    // Create separate algorithm instances to prevent TT contamination between chromosomes
-    let mut alg1 = AlphaBetaAlgorithm::new(); // For player1 (white)
-    let mut alg2 = AlphaBetaAlgorithm::new(); // For player2 (black)
     let mut move_count = 0;
     let max_moves = 100; // Prevent infinite games
 
@@ -137,8 +136,8 @@ fn play_chess_match(player1: Chromosome, player2: Chromosome, depth: i32) -> i32
 
         // Get move from appropriate player using their dedicated algorithm instance
         let chess_move = match board.side_to_move() {
-            chess::Color::White => alg1.get_best_move_with_chromosome(board, depth, &player1),
-            chess::Color::Black => alg2.get_best_move_with_chromosome(board, depth, &player2),
+            chess::Color::White => alg1.get_best_move_with_chromosome(board, depth, player1),
+            chess::Color::Black => alg2.get_best_move_with_chromosome(board, depth, player2),
         };
 
         match chess_move {
@@ -239,11 +238,19 @@ fn do_crossover_and_mutation(winner_genes: Vec<Chromosome>, wanted_genes_count: 
 fn run_match_task(task: MatchTask) -> MatchResult {
     println!("Running match {} (parallel)", task.match_id);
 
+    // One algorithm instance per player for the whole match. The transposition
+    // table caches scores computed with that player's chromosome values, so it
+    // must never be shared between chromosomes — but reusing it across the
+    // games of the same pairing is safe (same chromosome, same valuations) and
+    // avoids re-allocating and zeroing the tables for every game.
+    let mut alg1 = AlphaBetaAlgorithm::new(); // For player1 (white)
+    let mut alg2 = AlphaBetaAlgorithm::new(); // For player2 (black)
+
     let mut player1_wins = 0;
     let mut player2_wins = 0;
 
     for game in 1..=3 {
-        let result = play_chess_match(task.player1.clone(), task.player2.clone(), task.depth);
+        let result = play_chess_match(&mut alg1, &mut alg2, &task.player1, &task.player2, task.depth);
 
         match result {
             1 => {
@@ -297,28 +304,44 @@ fn run_match_task(task: MatchTask) -> MatchResult {
 }
 
 fn run_matches_parallel(matches: Vec<(Chromosome, Chromosome)>, depth: i32) -> Vec<Chromosome> {
-    let mut match_tasks = Vec::new();
+    let mut match_tasks = VecDeque::new();
 
     // Create match tasks
     for (match_id, (player1, player2)) in matches.into_iter().enumerate() {
         let task = MatchTask { player1, player2, depth, match_id };
-        match_tasks.push(task);
+        match_tasks.push_back(task);
     }
 
-    println!("Starting {} matches in parallel...", match_tasks.len());
+    // Bound the number of worker threads to the available cores: each running
+    // match holds two transposition tables, so unbounded threads would both
+    // oversubscribe the CPU and multiply memory usage with the player count.
+    let worker_count = thread::available_parallelism().map(|n| n.get()).unwrap_or(4).min(match_tasks.len()).max(1);
+    println!("Starting {} matches on {} worker threads...", match_tasks.len(), worker_count);
 
-    // Spawn threads for each match
+    let queue = Arc::new(Mutex::new(match_tasks));
     let mut handles = Vec::new();
-    for task in match_tasks {
-        let handle = thread::spawn(move || run_match_task(task));
+    for _ in 0..worker_count {
+        let queue = Arc::clone(&queue);
+        let handle = thread::spawn(move || {
+            let mut worker_results = Vec::new();
+            loop {
+                // Take the next match; the lock guard is dropped before the
+                // match runs so other workers are never blocked on it.
+                let task = queue.lock().unwrap().pop_front();
+                match task {
+                    Some(task) => worker_results.push(run_match_task(task)),
+                    None => return worker_results,
+                }
+            }
+        });
         handles.push(handle);
     }
 
-    // Wait for all threads to complete and collect results
+    // Wait for all workers to complete and collect results
     let mut results = Vec::new();
     for handle in handles {
         match handle.join() {
-            Ok(result) => results.push(result),
+            Ok(mut worker_results) => results.append(&mut worker_results),
             Err(e) => {
                 eprintln!("Thread panicked: {e:?}");
                 // Continue with other matches
