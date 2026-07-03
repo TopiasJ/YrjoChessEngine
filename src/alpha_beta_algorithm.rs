@@ -224,9 +224,11 @@ impl AlphaBetaAlgorithm {
             ProbeResult::Continue { hash, tt_move } => (hash, tt_move),
         };
 
-        if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
+        // Generate legal moves once for both the terminal check and move ordering.
+        let movegen = MoveGen::new_legal(&board);
+        if movegen.len() == 0 {
             self.stats.terminal_nodes += 1;
-            return terminal_score;
+            return terminal_score(&board, depth_left_before);
         }
 
         if depth_left_before == 0 {
@@ -238,7 +240,7 @@ impl AlphaBetaAlgorithm {
         }
 
         let mut alpha = alpha_before;
-        let mut moves = self.get_ordered_moves(&board);
+        let mut moves = ordered_moves(&board, movegen);
         order_tt_move_first(&mut moves, tt_move);
         let mut best_move = None;
 
@@ -271,9 +273,11 @@ impl AlphaBetaAlgorithm {
             ProbeResult::Continue { hash, tt_move } => (hash, tt_move),
         };
 
-        if let Some(terminal_score) = self.check_terminal_position(&board, depth_left_before) {
+        // Generate legal moves once for both the terminal check and move ordering.
+        let movegen = MoveGen::new_legal(&board);
+        if movegen.len() == 0 {
             self.stats.terminal_nodes += 1;
-            return terminal_score;
+            return terminal_score(&board, depth_left_before);
         }
 
         if depth_left_before == 0 {
@@ -285,7 +289,7 @@ impl AlphaBetaAlgorithm {
         }
 
         let mut beta = beta_before;
-        let mut moves = self.get_ordered_moves(&board);
+        let mut moves = ordered_moves(&board, movegen);
         order_tt_move_first(&mut moves, tt_move);
         let mut best_move = None;
 
@@ -337,43 +341,41 @@ impl AlphaBetaAlgorithm {
         self.transposition_table.store(hash, depth, node_type, score, best_move);
     }
 
-    /// Check if the position is terminal (game over) and return the appropriate score
-    fn check_terminal_position(&self, board: &Board, depth_left: i32) -> Option<i32> {
-        let moves_iterable = MoveGen::new_legal(board);
-
-        if moves_iterable.len() == 0 {
-            // Game ended - check if it's checkmate or stalemate
-            if board.checkers() == &EMPTY {
-                return Some(0); // Stalemate
-            } else {
-                // Checkmate - the side to move is checkmated
-                return Some(match board.side_to_move() {
-                    Color::White => -9999 - depth_left,
-                    Color::Black => 9999 + depth_left,
-                });
-            }
-        }
-
-        None // Game continues
-    }
-
     /// Get moves in order of priority (captures first, then others)
     pub fn get_ordered_moves(&self, board: &Board) -> Vec<ChessMove> {
-        let mut moves: Vec<ChessMove> = Vec::new();
-
-        // First, collect capture moves
-        let mut capture_moves = MoveGen::new_legal(board);
-        let targets = board.color_combined(!board.side_to_move());
-        capture_moves.set_iterator_mask(*targets);
-        moves.extend(capture_moves);
-
-        // Then, collect non-capture moves
-        let mut non_capture_moves = MoveGen::new_legal(board);
-        non_capture_moves.set_iterator_mask(!*targets);
-        moves.extend(non_capture_moves);
-
-        moves
+        ordered_moves(board, MoveGen::new_legal(board))
     }
+}
+
+/// Score for a position with no legal moves: stalemate is a draw, checkmate is
+/// scored so the side to move loses, preferring faster mates.
+fn terminal_score(board: &Board, depth_left: i32) -> i32 {
+    if board.checkers() == &EMPTY {
+        0 // Stalemate
+    } else {
+        match board.side_to_move() {
+            Color::White => -9999 - depth_left,
+            Color::Black => 9999 + depth_left,
+        }
+    }
+}
+
+/// Build the ordered move list (captures first, then others), reusing an
+/// already-created generator for the capture pass instead of regenerating.
+fn ordered_moves(board: &Board, mut capture_moves: MoveGen) -> Vec<ChessMove> {
+    let mut moves: Vec<ChessMove> = Vec::with_capacity(capture_moves.len());
+
+    // First, collect capture moves
+    let targets = board.color_combined(!board.side_to_move());
+    capture_moves.set_iterator_mask(*targets);
+    moves.extend(capture_moves);
+
+    // Then, collect non-capture moves
+    let mut non_capture_moves = MoveGen::new_legal(board);
+    non_capture_moves.set_iterator_mask(!*targets);
+    moves.extend(non_capture_moves);
+
+    moves
 }
 
 #[cfg(test)]
