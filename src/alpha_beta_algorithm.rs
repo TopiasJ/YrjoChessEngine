@@ -87,17 +87,7 @@ const TT_MIN_DEPTH: i32 = 2;
 
 impl AlgorithmTraits for AlphaBetaAlgorithm {
     fn get_best_move(&mut self, board: Board, depth: i32) -> Option<ChessMove> {
-        self.reset_stats();
-        let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
-        let moves: Vec<ChessMove> = MoveGen::new_legal(&board).collect();
-
-        // Evaluate all moves
-        for mov in moves {
-            self.calc_one_move(&mut best_moves, mov, board, depth, None);
-        }
-
-        // Sort moves by evaluation (best for current player first)
-        best_moves.sort_by_key(|k| k.1);
+        let best_moves = self.search_root_moves(board, depth, None);
 
         let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move())?;
         let selected_move = match board.side_to_move() {
@@ -114,17 +104,7 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
     }
 
     fn get_best_move_with_chromosome(&mut self, board: Board, depth: i32, chromosome: &Chromosome) -> Option<ChessMove> {
-        self.reset_stats();
-        let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
-        let moves: Vec<ChessMove> = MoveGen::new_legal(&board).collect();
-
-        // Evaluate all moves
-        for mov in moves {
-            self.calc_one_move(&mut best_moves, mov, board, depth, Some(chromosome));
-        }
-
-        // Sort moves by evaluation (best for current player first)
-        best_moves.sort_by_key(|k| k.1);
+        let best_moves = self.search_root_moves(board, depth, Some(chromosome));
 
         let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move())?;
         let selected_move = match board.side_to_move() {
@@ -132,26 +112,11 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
             Color::Black => best_moves[selected_index],
         };
 
-        //let color: String = match board.side_to_move() {
-        //    Color::White => "White".to_string(),
-        //    Color::Black => "Black".to_string(),
-        //};
-        // println!("value for selected move for {0}: {1}", color, selected_move.1);
         Some(selected_move.0)
     }
 
     fn get_best_move_with_stats(&mut self, board: Board, depth: i32) -> (Option<ChessMove>, SearchStats) {
-        self.reset_stats();
-        let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
-        let moves: Vec<ChessMove> = MoveGen::new_legal(&board).collect();
-
-        // Evaluate all moves
-        for mov in moves {
-            self.calc_one_move(&mut best_moves, mov, board, depth, None);
-        }
-
-        // Sort moves by evaluation (best for current player first)
-        best_moves.sort_by_key(|k| k.1);
+        let best_moves = self.search_root_moves(board, depth, None);
 
         let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move());
         let selected_move = selected_index.map(|idx| match board.side_to_move() {
@@ -164,17 +129,7 @@ impl AlgorithmTraits for AlphaBetaAlgorithm {
     }
 
     fn get_best_move_with_chromosome_and_stats(&mut self, board: Board, depth: i32, chromosome: &Chromosome) -> (Option<ChessMove>, SearchStats) {
-        self.reset_stats();
-        let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
-        let moves: Vec<ChessMove> = MoveGen::new_legal(&board).collect();
-
-        // Evaluate all moves
-        for mov in moves {
-            self.calc_one_move(&mut best_moves, mov, board, depth, Some(chromosome));
-        }
-
-        // Sort moves by evaluation (best for current player first)
-        best_moves.sort_by_key(|k| k.1);
+        let best_moves = self.search_root_moves(board, depth, Some(chromosome));
 
         let selected_index = get_random_from_multiple_best_moves(&best_moves, board.side_to_move());
         let selected_move = selected_index.map(|idx| match board.side_to_move() {
@@ -210,15 +165,55 @@ fn get_random_from_multiple_best_moves(best_moves: &Vec<(ChessMove, i32)>, color
     Some(selected_index as usize)
 }
 
+/// Fold a root move's score into the running best for the side to move.
+fn update_root_best(best_so_far: Option<i32>, score: i32, side: Color) -> i32 {
+    match (best_so_far, side) {
+        (None, _) => score,
+        (Some(best), Color::White) => best.max(score),
+        (Some(best), Color::Black) => best.min(score),
+    }
+}
+
 impl AlphaBetaAlgorithm {
+    /// Search every root move and return them sorted by score (ascending).
+    /// The window is narrowed as the best score improves, so ties with the
+    /// best stay exact while strictly worse moves are pruned early.
+    fn search_root_moves(&mut self, board: Board, depth: i32, chromosome: Option<&Chromosome>) -> Vec<(ChessMove, i32)> {
+        self.reset_stats();
+        let mut best_moves: Vec<(ChessMove, i32)> = Vec::new();
+        // Captures first, like every other ply: a strong early best score
+        // makes the narrowed window prune more of the remaining moves.
+        let moves = self.get_ordered_moves(&board);
+
+        let mut best_score: Option<i32> = None;
+        for mov in moves {
+            let score = self.calc_one_move(&mut best_moves, mov, board, depth, chromosome, best_score);
+            best_score = Some(update_root_best(best_score, score, board.side_to_move()));
+        }
+
+        // Sort moves by evaluation (best for current player first)
+        best_moves.sort_by_key(|k| k.1);
+        best_moves
+    }
+
     #[inline]
-    fn calc_one_move(&mut self, best_moves: &mut Vec<(ChessMove, i32)>, a_move: ChessMove, test_game: Board, depth: i32, chromosome: Option<&Chromosome>) {
+    fn calc_one_move(&mut self, best_moves: &mut Vec<(ChessMove, i32)>, a_move: ChessMove, test_game: Board, depth: i32, chromosome: Option<&Chromosome>, best_so_far: Option<i32>) -> i32 {
         let new_board = test_game.make_move_new(a_move);
+        // Narrow the window to one point past the best score so far: moves that tie
+        // the best still get exact scores (needed for the random tie-break at the
+        // root), while strictly worse moves fail early and get pruned.
         let result: i32 = match new_board.side_to_move() {
-            Color::White => self.alpha_beta_max(new_board, -999999, 999999, depth, chromosome),
-            Color::Black => self.alpha_beta_min(new_board, -999999, 999999, depth, chromosome),
+            Color::White => {
+                let beta = best_so_far.map_or(999999, |best| best + 1);
+                self.alpha_beta_max(new_board, -999999, beta, depth, chromosome)
+            }
+            Color::Black => {
+                let alpha = best_so_far.map_or(-999999, |best| best - 1);
+                self.alpha_beta_min(new_board, alpha, 999999, depth, chromosome)
+            }
         };
         best_moves.push((a_move, result));
+        result
     }
 
     pub fn alpha_beta_max(&mut self, board: Board, alpha_before: i32, beta: i32, depth_left_before: i32, chromosome: Option<&Chromosome>) -> i32 {
@@ -378,5 +373,66 @@ impl AlphaBetaAlgorithm {
         moves.extend(non_capture_moves);
 
         moves
+    }
+}
+
+#[cfg(test)]
+mod root_search_tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn update_root_best_tracks_side_preference() {
+        assert_eq!(update_root_best(None, 5, Color::White), 5);
+        assert_eq!(update_root_best(Some(3), 5, Color::White), 5);
+        assert_eq!(update_root_best(Some(7), 5, Color::White), 7);
+        assert_eq!(update_root_best(None, 5, Color::Black), 5);
+        assert_eq!(update_root_best(Some(3), 5, Color::Black), 3);
+        assert_eq!(update_root_best(Some(7), 5, Color::Black), 5);
+    }
+
+    /// The invariant the random tie-break at the root depends on: every move
+    /// that ties the best score must be reported with its exact full-window
+    /// value, and no pruned move may collide with that best score.
+    #[test]
+    fn narrowed_root_windows_keep_best_scores_exact() {
+        for fen in [
+            "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 3",
+            "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 4 3",
+        ] {
+            let board = Board::from_str(fen).unwrap();
+            let depth = 3;
+
+            let mut alg = AlphaBetaAlgorithm::new();
+            let narrowed = alg.search_root_moves(board, depth, None);
+
+            // Reference scores: each move searched with the full window by a
+            // fresh instance, so nothing is pruned.
+            let exact: Vec<(ChessMove, i32)> = narrowed
+                .iter()
+                .map(|&(mov, _)| {
+                    let mut reference = AlphaBetaAlgorithm::new();
+                    let new_board = board.make_move_new(mov);
+                    let score = match new_board.side_to_move() {
+                        Color::White => reference.alpha_beta_max(new_board, -999999, 999999, depth, None),
+                        Color::Black => reference.alpha_beta_min(new_board, -999999, 999999, depth, None),
+                    };
+                    (mov, score)
+                })
+                .collect();
+
+            let best = match board.side_to_move() {
+                Color::White => exact.iter().map(|k| k.1).max().unwrap(),
+                Color::Black => exact.iter().map(|k| k.1).min().unwrap(),
+            };
+
+            for (&(mov, narrowed_score), &(_, exact_score)) in narrowed.iter().zip(exact.iter()) {
+                if exact_score == best {
+                    assert_eq!(narrowed_score, exact_score, "tied-best move {mov} must keep its exact score");
+                } else {
+                    assert_ne!(narrowed_score, best, "pruned move {mov} must not collide with the best score");
+                }
+            }
+        }
     }
 }
